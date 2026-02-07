@@ -9,8 +9,9 @@ services:
       - WORKSPACE_ROOT=/workspace
       - LIBC=glibc
       - CSS_TRANSFORMER_WASM=1
+      - NEXT_DISABLE_TURBOPACK=1
     volumes:
       - ./:/app
       - /app/node_modules
       - /Users/m/.openclaw/workspace:/workspace:ro
-    command: npm run dev -- -p 3000
+    command: sh -c "npm install --include=optional && npx next dev --webpack -p 3000"
