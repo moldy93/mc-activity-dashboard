@@ -13,14 +13,25 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   );
 }
 
+function Pill({ label }: { label: string }) {
+  return (
+    <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
+      {label}
+    </span>
+  );
+}
+
 function ActivityFeed() {
   const activities = useQuery(api.activity.listRecent, { limit: 60 }) ?? [];
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-      <SectionHeader
-        title="Activity Feed"
-        subtitle="Every action recorded. Ingest via /api/activity or Convex mutation."
-      />
+    <div id="activity" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <SectionHeader
+          title="Activity Feed"
+          subtitle="Every action recorded. Ingest via /api/activity or Convex mutation."
+        />
+        <Pill label={`${activities.length} events`} />
+      </div>
       <div className="space-y-3">
         {activities.length === 0 && (
           <p className="text-sm text-slate-400">No activity yet.</p>
@@ -28,7 +39,7 @@ function ActivityFeed() {
         {activities.map((item) => (
           <div
             key={item._id}
-            className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"
+            className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-100">
@@ -43,7 +54,7 @@ function ActivityFeed() {
                 {item.detail}
               </p>
             )}
-            <div className="mt-2 flex gap-2 text-xs text-slate-500">
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
               {item.kind && <span>Kind: {item.kind}</span>}
               {item.source && <span>Source: {item.source}</span>}
             </div>
@@ -76,12 +87,15 @@ function WeeklyCalendar() {
     }) ?? [];
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-      <SectionHeader
-        title="Weekly Schedule"
-        subtitle="Upcoming scheduled tasks (from Convex)."
-      />
-      <div className="flex items-center gap-2 mb-4">
+    <div id="schedule" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <SectionHeader
+          title="Weekly Schedule"
+          subtitle="Upcoming scheduled tasks (from Convex)."
+        />
+        <Pill label={`${tasks.length} tasks`} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <button
           className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
           onClick={() => {
@@ -119,7 +133,7 @@ function WeeklyCalendar() {
         {tasks.map((task) => (
           <div
             key={task._id}
-            className="rounded-lg border border-slate-800 bg-slate-950/60 p-3"
+            className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-100">
@@ -134,7 +148,7 @@ function WeeklyCalendar() {
                 {task.description}
               </p>
             )}
-            <div className="mt-2 text-xs text-slate-500">
+            <div className="mt-3 text-xs text-slate-500">
               {task.scheduleType.toUpperCase()}: {task.schedule}
             </div>
           </div>
@@ -179,7 +193,7 @@ function GlobalSearch() {
   );
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+    <div id="search" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <SectionHeader
         title="Global Search"
         subtitle="Search memories, documents, and task notes indexed from workspace."
@@ -206,18 +220,42 @@ function GlobalSearch() {
 
 export default function Home() {
   return (
-    <main className="min-h-screen px-6 py-8">
+    <main className="min-h-screen px-6 py-10">
       <header className="mb-8">
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
           Mission Control
         </p>
-        <h1 className="text-3xl font-bold text-white mt-2">
-          Activity + Schedule + Search
-        </h1>
-        <p className="text-sm text-slate-400 mt-2 max-w-2xl">
-          Central dashboard for every action, scheduled task, and searchable
-          workspace knowledge.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mt-2">
+              Activity + Schedule + Search
+            </h1>
+            <p className="text-sm text-slate-400 mt-2 max-w-2xl">
+              Central dashboard for every action, scheduled task, and searchable
+              workspace knowledge.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="#activity"
+              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Activity
+            </a>
+            <a
+              href="#schedule"
+              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Schedule
+            </a>
+            <a
+              href="#search"
+              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Search
+            </a>
+          </div>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
