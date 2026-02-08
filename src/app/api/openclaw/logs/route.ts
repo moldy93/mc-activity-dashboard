@@ -23,7 +23,7 @@ export async function GET() {
     const timeout = setTimeout(() => {
       try { ws.close(); } catch {}
       reject(new Error("timeout"));
-    }, 5000);
+    }, 10000);
 
     const sendConnect = (challenge?: { nonce?: string; ts?: number }) => {
       const id = crypto.randomUUID();
@@ -72,6 +72,11 @@ export async function GET() {
         })
       );
     };
+
+    ws.on("open", () => {
+      // Attempt connect immediately; if gateway demands a challenge, we'll retry.
+      sendConnect();
+    });
 
     ws.on("message", (raw) => {
       try {
