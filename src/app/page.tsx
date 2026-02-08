@@ -163,9 +163,6 @@ function WeeklyCalendar() {
 
   return (
     <div id="schedule" className="py-4">
-      <div className="flex items-start justify-between gap-4">
-        <Pill label={`${tasks.length} tasks`} />
-      </div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <button
           className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
