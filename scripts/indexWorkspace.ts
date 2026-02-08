@@ -170,7 +170,17 @@ async function main() {
   });
 
   const taskTitleById = new Map<string, string>();
-  const statusEntries: Array<{ taskId: string; inProgress?: string; updatedAt: number; filePath: string } > = [];
+  const statusEntries: Array<{
+    taskId: string;
+    done?: string;
+    inProgress?: string;
+    next?: string;
+    eta?: string;
+    needFromYou?: string;
+    risks?: string;
+    updatedAt: number;
+    filePath: string;
+  }> = [];
 
   for (const filePath of files) {
     const stats = fs.statSync(filePath);
@@ -225,7 +235,12 @@ async function main() {
           if (projectId && taskTitleById.has(status.taskId)) {
             statusEntries.push({
               taskId: status.taskId,
+              done: status.done,
               inProgress: status.inProgress,
+              next: status.next,
+              eta: status.eta,
+              needFromYou: status.needFromYou,
+              risks: status.risks,
               updatedAt: stats.mtimeMs,
               filePath: relPath,
             });
@@ -244,7 +259,7 @@ async function main() {
   }
 
   if (statusEntries.length > 0) {
-    const latestByTask = new Map<string, { inProgress?: string; updatedAt: number; filePath: string }>();
+    const latestByTask = new Map<string, typeof statusEntries[number]>();
     for (const entry of statusEntries) {
       const existing = latestByTask.get(entry.taskId);
       if (!existing || entry.updatedAt >= existing.updatedAt) {
@@ -252,10 +267,15 @@ async function main() {
       }
     }
 
-    for (const [taskId, entry] of latestByTask.entries()) {
+    for (const entry of latestByTask.values()) {
       await client.mutation("mc:upsertStatus", {
-        taskId,
+        taskId: entry.taskId,
+        done: entry.done,
         inProgress: entry.inProgress,
+        next: entry.next,
+        eta: entry.eta,
+        needFromYou: entry.needFromYou,
+        risks: entry.risks,
         filePath: entry.filePath,
         updatedAt: entry.updatedAt,
       });
