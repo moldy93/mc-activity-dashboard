@@ -166,6 +166,22 @@ function parseAgentFile(content: string) {
   return { role, mission, responsibilities, statusCadence, outputStandard };
 }
 
+function renderBoardMarkdown(columns: { column: string; items: string[] }[]) {
+  const order = ["Inbox", "Planning", "Development", "Review", "Done"];
+  const byColumn = new Map(columns.map((col) => [col.column, col.items]));
+  return ["# Mission Control Board", "", ...order.flatMap((column) => {
+    const items = byColumn.get(column) || [];
+    const lines = [`## ${column}`];
+    if (items.length === 0) {
+      lines.push("- ");
+    } else {
+      lines.push(...items.map((item) => `- ${item}`));
+    }
+    return [...lines, ""];
+  })].join("
+");
+}
+
 function parseBoardFile(content: string) {
   const columns = ["Inbox", "Planning", "Development", "Review", "Done"];
   return columns.map((column) => ({
@@ -191,6 +207,8 @@ async function main() {
 
   const taskTitleById = new Map<string, string>();
   let boardFromFile = false;
+  let boardFilePath: string | null = null;
+  let boardColumnsFromFile: { column: string; items: string[] }[] | null = null;
   const statusEntries: Array<{
     taskId: string;
     done?: string;
@@ -273,12 +291,8 @@ async function main() {
       } else if (filePath.endsWith(`${path.sep}board.md`)) {
         const columns = parseBoardFile(content);
         boardFromFile = true;
-        for (const column of columns) {
-          await client.mutation("mc:upsertBoardColumn", {
-            ...column,
-            updatedAt: stats.mtimeMs,
-          });
-        }
+        boardFilePath = relPath;
+        boardColumnsFromFile = columns;
       }
     }
   }
@@ -326,6 +340,37 @@ async function main() {
         filePath: entry.filePath,
         updatedAt: entry.updatedAt,
       });
+    }
+
+    if (boardFromFile && boardFilePath && boardColumnsFromFile) {
+      const existing = new Set(
+        boardColumnsFromFile.flatMap((col) => col.items.map((item) => item.trim()))
+      );
+      const planning = boardColumnsFromFile.find((col) => col.column === "Planning");
+      const target = planning || boardColumnsFromFile.find((col) => col.column === "Inbox");
+      const appended: string[] = [];
+      for (const [taskId] of latestByTask.entries()) {
+        const title = taskTitleById.get(taskId);
+        const label = title ? `${taskId} — ${title}` : taskId;
+        if (!existing.has(label)) {
+          appended.push(label);
+        }
+      }
+      if (appended.length > 0 && target) {
+        target.items = [...target.items.filter(Boolean), ...appended];
+        const fullPath = path.join(WORKSPACE_ROOT, boardFilePath);
+        fs.writeFileSync(fullPath, renderBoardMarkdown(boardColumnsFromFile));
+        const updatedStats = fs.statSync(fullPath);
+        nextIndexState[boardFilePath] = updatedStats.mtimeMs;
+      }
+
+      const boardUpdatedAt = Date.now();
+      for (const column of boardColumnsFromFile) {
+        await client.mutation("mc:upsertBoardColumn", {
+          ...column,
+          updatedAt: boardUpdatedAt,
+        });
+      }
     }
 
     if (!boardFromFile) {
