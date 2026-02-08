@@ -22,7 +22,7 @@ Docker:
 ```bash
 docker compose up --build
 ```
-Access: `http://192.168.3.116:3001`
+Access: `http://localhost:3001`
 
 ## Convex
 - `convex/activity.ts` — log + list
