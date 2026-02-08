@@ -168,6 +168,7 @@ async function main() {
   });
 
   const taskTitleById = new Map<string, string>();
+  let boardFromFile = false;
   const statusEntries: Array<{
     taskId: string;
     done?: string;
@@ -246,6 +247,7 @@ async function main() {
         }
       } else if (filePath.endsWith(`${path.sep}board.md`)) {
         const columns = parseBoardFile(content);
+        boardFromFile = true;
         for (const column of columns) {
           await client.mutation("mc:upsertBoardColumn", {
             ...column,
@@ -301,38 +303,40 @@ async function main() {
       });
     }
 
-    const columns = {
-      Inbox: new Set<string>(),
-      Planning: new Set<string>(),
-      Development: new Set<string>(),
-      Review: new Set<string>(),
-      Done: new Set<string>(),
-    };
+    if (!boardFromFile) {
+      const columns = {
+        Inbox: new Set<string>(),
+        Planning: new Set<string>(),
+        Development: new Set<string>(),
+        Review: new Set<string>(),
+        Done: new Set<string>(),
+      };
 
-    for (const [taskId, entry] of latestByTask.entries()) {
-      const title = taskTitleById.get(taskId);
-      const label = title ? `${taskId} — ${title}` : taskId;
-      const statusText = (entry.inProgress || entry.done || "").toLowerCase();
-      if (statusText.includes("done") || statusText.includes("complete")) {
-        columns.Done.add(label);
-      } else if (statusText.includes("review")) {
-        columns.Review.add(label);
-      } else if (statusText.includes("develop") || statusText.includes("implement")) {
-        columns.Development.add(label);
-      } else if (statusText.includes("plan")) {
-        columns.Planning.add(label);
-      } else {
-        columns.Inbox.add(label);
+      for (const [taskId, entry] of latestByTask.entries()) {
+        const title = taskTitleById.get(taskId);
+        const label = title ? `${taskId} — ${title}` : taskId;
+        const statusText = (entry.inProgress || entry.done || "").toLowerCase();
+        if (statusText.includes("done") || statusText.includes("complete")) {
+          columns.Done.add(label);
+        } else if (statusText.includes("review")) {
+          columns.Review.add(label);
+        } else if (statusText.includes("develop") || statusText.includes("implement")) {
+          columns.Development.add(label);
+        } else if (statusText.includes("plan")) {
+          columns.Planning.add(label);
+        } else {
+          columns.Inbox.add(label);
+        }
       }
-    }
 
-    const updatedAt = Date.now();
-    for (const [column, items] of Object.entries(columns)) {
-      await client.mutation("mc:upsertBoardColumn", {
-        column,
-        items: Array.from(items),
-        updatedAt,
-      });
+      const updatedAt = Date.now();
+      for (const [column, items] of Object.entries(columns)) {
+        await client.mutation("mc:upsertBoardColumn", {
+          column,
+          items: Array.from(items),
+          updatedAt,
+        });
+      }
     }
   }
 
