@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -87,13 +87,22 @@ function getWeekRange(anchor: Date) {
 }
 
 function WeeklyCalendar() {
-  const [anchor, setAnchor] = useState(new Date());
-  const range = useMemo(() => getWeekRange(anchor), [anchor]);
+  const [anchor, setAnchor] = useState<Date | null>(null);
+  useEffect(() => {
+    setAnchor(new Date());
+  }, []);
+
+  const range = useMemo(() => (anchor ? getWeekRange(anchor) : null), [anchor]);
   const tasks =
-    useQuery(api.tasks.listWeek, {
-      weekStart: range.monday.getTime(),
-      weekEnd: range.sunday.getTime(),
-    }) ?? [];
+    useQuery(
+      api.tasks.listWeek,
+      range
+        ? {
+            weekStart: range.monday.getTime(),
+            weekEnd: range.sunday.getTime(),
+          }
+        : "skip"
+    ) ?? [];
 
   return (
     <div id="schedule" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -131,8 +140,12 @@ function WeeklyCalendar() {
         >
           Next
         </button>
-        <span className="text-sm text-slate-400 ml-2">
-          {dateFormatter.format(range.monday)} – {dateFormatter.format(range.sunday)}
+        <span className="text-sm text-slate-400 ml-2" suppressHydrationWarning>
+          {range
+            ? `${dateFormatter.format(range.monday)} – ${dateFormatter.format(
+                range.sunday
+              )}`
+            : "Loading…"}
         </span>
       </div>
       <div className="grid grid-cols-1 gap-3">
