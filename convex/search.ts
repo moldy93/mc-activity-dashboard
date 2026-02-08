@@ -11,9 +11,18 @@ export const global = query({
     if (!args.term.trim()) return { memories: [], documents: [], taskNotes: [] };
 
     const [memories, documents, taskNotes] = await Promise.all([
-      ctx.db.search("memories", "search_memories", args.term).take(limit),
-      ctx.db.search("documents", "search_documents", args.term).take(limit),
-      ctx.db.search("taskNotes", "search_taskNotes", args.term).take(limit),
+      ctx.db
+        .query("memories")
+        .withSearchIndex("search_memories", (q) => q.search("content", args.term))
+        .take(limit),
+      ctx.db
+        .query("documents")
+        .withSearchIndex("search_documents", (q) => q.search("content", args.term))
+        .take(limit),
+      ctx.db
+        .query("taskNotes")
+        .withSearchIndex("search_taskNotes", (q) => q.search("content", args.term))
+        .take(limit),
     ]);
 
     return { memories, documents, taskNotes };
