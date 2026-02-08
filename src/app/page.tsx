@@ -485,54 +485,6 @@ export default function Home() {
   return (
     <>
       <main className="min-h-screen px-6 py-10">
-      <header className="mb-8">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-          Mission Control
-        </p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mt-2">
-              Activity + Schedule + Search
-            </h1>
-            <p className="text-sm text-slate-400 mt-2 max-w-2xl">
-              Central dashboard for every action, scheduled task, and searchable
-              workspace knowledge.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <a
-              href="#mission-control"
-              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Mission Control
-            </a>
-            <a
-              href="#activity"
-              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Activity
-            </a>
-            <a
-              href="#schedule"
-              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Schedule
-            </a>
-            <a
-              href="#logs"
-              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Logs
-            </a>
-            <a
-              href="#search"
-              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Search
-            </a>
-          </div>
-        </div>
-      </header>
 
       <div className="mt-6">
         <MissionControlOverview />
