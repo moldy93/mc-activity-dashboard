@@ -42,6 +42,22 @@ function Pill({ label }: { label: string }) {
   );
 }
 
+const extractProjectId = (value?: string) => {
+  if (!value) return null;
+  const match = value.match(/[a-z]+-\d{3}(?:-\d{2})?/i);
+  return match ? match[0].toLowerCase() : null;
+};
+
+function ProjectBadge({ value }: { value?: string }) {
+  const projectId = extractProjectId(value);
+  if (!projectId) return null;
+  return (
+    <span className="rounded-full border border-slate-700 bg-slate-900/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-300">
+      {projectId}
+    </span>
+  );
+}
+
 function ActivityFeed() {
   const activities = useQuery(api.activity.listRecent, { limit: 60 }) ?? [];
   return (
@@ -63,9 +79,12 @@ function ActivityFeed() {
             className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-100">
-                {item.title}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  {item.title}
+                </h3>
+                <ProjectBadge value={item.title} />
+              </div>
               <span className="text-xs text-slate-500">
                 {new Date(item.createdAt).toLocaleString()}
               </span>
@@ -170,9 +189,12 @@ function WeeklyCalendar() {
             className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-100">
-                {task.title}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  {task.title}
+                </h3>
+                <ProjectBadge value={task.title} />
+              </div>
               <span className="text-xs text-slate-500">
                 {dateTimeFormatter.format(new Date(task.nextRunAt))}
               </span>
@@ -240,7 +262,10 @@ function MissionControlOverview() {
                 <ul className="mt-2 space-y-1 text-xs text-slate-300">
                   {col.items.length === 0 && <li className="text-slate-500">—</li>}
                   {col.items.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li key={item} className="flex items-center gap-2">
+                      <span>{item}</span>
+                      <ProjectBadge value={item} />
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -257,9 +282,12 @@ function MissionControlOverview() {
             return (
               <div key={status._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-100 font-semibold">
-                    {task?.title || status.taskId}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-100 font-semibold">
+                      {task?.title || status.taskId}
+                    </span>
+                    <ProjectBadge value={task?.title || status.taskId} />
+                  </div>
                   <span className="text-xs text-slate-500">{relativeDate(status.updatedAt)}</span>
                 </div>
                 {status.inProgress && (
