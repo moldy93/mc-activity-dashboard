@@ -499,11 +499,10 @@ export default function Home() {
           <div>
             <WeeklyCalendar />
           </div>
+          <div>
+            <RecentLogs />
+          </div>
         </div>
-      </div>
-
-      <div className="pt-6">
-        <RecentLogs />
       </div>
     </main>
     <StickyHealthBar />
