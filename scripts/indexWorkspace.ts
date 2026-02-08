@@ -251,7 +251,7 @@ async function main() {
       const title = taskTitleById.get(entry.taskId);
       const label = title ? `${entry.taskId} — ${title}` : entry.taskId;
       const statusText = (entry.inProgress || "").toLowerCase();
-      if (statusText.includes("done")) {
+      if (statusText.includes("done") || statusText.includes("complete")) {
         columns.Done.add(label);
       } else if (statusText.includes("review")) {
         columns.Review.add(label);
