@@ -29,6 +29,7 @@ type LogEntry = {
   time?: string;
   level: string;
   subsystem?: string;
+  subsystemMeta?: string;
   message: string;
 };
 
@@ -58,7 +59,6 @@ const parseLogLine = (line: string): LogEntry => {
         parsed.data ||
         parsed["2"] ||
         parsed["1"] ||
-        parsed["0"] ||
         "";
 
       let message = "";
@@ -69,10 +69,23 @@ const parseLogLine = (line: string): LogEntry => {
       }
 
       let subsystem = parsed.subsystem || parsed.source || parsed._meta?.name || parsed["0"];
+      let subsystemName: string | undefined;
       if (typeof subsystem === "string" && subsystem.startsWith("{")) {
         try {
           const parsedSub = JSON.parse(subsystem);
-          subsystem = parsedSub.subsystem || parsedSub.source || subsystem;
+          subsystemName = parsedSub.subsystem || parsedSub.source;
+        } catch {
+          // ignore
+        }
+      }
+      subsystemName = subsystemName || (typeof subsystem === "string" ? subsystem : undefined);
+
+      const subsystemMeta = parsed["0"];
+      let subsystemMetaText = "";
+      if (typeof subsystemMeta === "string" && subsystemMeta.startsWith("{")) {
+        try {
+          const parsedMeta = JSON.parse(subsystemMeta);
+          if (parsedMeta.subsystem) subsystemMetaText = JSON.stringify(parsedMeta);
         } catch {
           // ignore
         }
@@ -82,8 +95,9 @@ const parseLogLine = (line: string): LogEntry => {
         raw: line,
         time: time ? formatLogTime(time) : "",
         level,
-        subsystem: subsystem ? String(subsystem) : undefined,
+        subsystem: subsystemName,
         message: message || "(no message)",
+        subsystemMeta: subsystemMetaText,
       };
     } catch {
       // fallthrough
@@ -125,6 +139,9 @@ const formatLogParts = (entry: LogEntry): LogPart[] => {
   if (entry.subsystem) {
     parts.push({ text: entry.subsystem.padEnd(12, " "), className: "text-purple-200" });
   }
+  if (entry.subsystemMeta) {
+    parts.push({ text: entry.subsystemMeta, className: "text-purple-200" });
+  }
   parts.push({ text: entry.message, className: "text-slate-100" });
   return parts;
 };
@@ -145,7 +162,6 @@ export default function RecentLogs({
   const cursorRef = useRef<number | null>(null);
   const [levelFilter, setLevelFilter] = useState<string[]>(["ERROR", "WARN", "INFO"]);
   const [subsystemFilter, setSubsystemFilter] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -236,31 +252,16 @@ export default function RecentLogs({
             {level}
           </button>
         ))}
-        <button
-          className={`rounded-full border px-3 py-1 ${
-            showSearch
-              ? "border-slate-500 bg-slate-800 text-slate-100"
-              : "border-slate-700 bg-slate-900 text-slate-400"
-          }`}
-          onClick={() => {
-            setShowSearch((prev) => !prev);
-            if (showSearch) setSubsystemFilter("");
-          }}
-        >
-          Search
-        </button>
-        {showSearch && (
-          <input
-            value={subsystemFilter}
-            onChange={(event) => setSubsystemFilter(event.target.value)}
-            placeholder={
-              availableSubsystems.length
-                ? `Subsystem (e.g. ${availableSubsystems[0]})`
-                : "Subsystem filter"
-            }
-            className="ml-auto min-w-[180px] rounded-md border border-slate-700 bg-slate-950 px-3 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
-          />
-        )}
+        <input
+          value={subsystemFilter}
+          onChange={(event) => setSubsystemFilter(event.target.value)}
+          placeholder={
+            availableSubsystems.length
+              ? `Subsystem (e.g. ${availableSubsystems[0]})`
+              : "Subsystem filter"
+          }
+          className="ml-auto min-w-[180px] rounded-md border border-slate-700 bg-slate-950 px-3 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
+        />
       </div>
 
       <div
