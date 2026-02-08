@@ -178,8 +178,7 @@ function renderBoardMarkdown(columns: { column: string; items: string[] }[]) {
       lines.push(...items.map((item) => `- ${item}`));
     }
     return [...lines, ""];
-  })].join("
-");
+  })].join("\n");
 }
 
 function parseBoardFile(content: string) {
