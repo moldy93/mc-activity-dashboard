@@ -212,3 +212,13 @@ export const upsertCountsDaily = mutation({
     return await ctx.db.insert("mcCountsDaily", args);
   },
 });
+
+export const listCountsDaily = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("mcCountsDaily")
+      .withIndex("by_date")
+      .collect();
+  },
+});

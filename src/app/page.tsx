@@ -216,6 +216,7 @@ function WeeklyCalendar() {
 
 function MissionControlOverview() {
   const data = useQuery(api.mc.getOverview);
+  const dailyCounts = useQuery(api.mc.listCountsDaily) ?? [];
   if (!data) {
     return (
       <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -228,9 +229,99 @@ function MissionControlOverview() {
   const statusByTask = new Map(data.status.map((s) => [s.taskId, s]));
   const taskById = new Map(data.tasks.map((t) => [t.taskId, t]));
 
+  const latestSnapshot = dailyCounts[dailyCounts.length - 1];
+  const trendWindow = dailyCounts.slice(-30);
+  const lastUpdated = latestSnapshot ? new Date(latestSnapshot.updatedAt) : null;
+  const formatTime = (date: Date) =>
+    date.toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
+
+  const renderSparkline = (values: number[]) => {
+    if (values.length < 2) return null;
+    const width = 80;
+    const height = 24;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const points = values.map((value, index) => {
+      const x = (index / (values.length - 1)) * width;
+      const y = height - ((value - min) / range) * height;
+      return `${x},${y}`;
+    });
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-6 w-20 text-slate-400">
+        <polyline
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          points={points.join(" ")}
+        />
+      </svg>
+    );
+  };
+
+  const typeCards = latestSnapshot
+    ? (
+        [
+          { key: "documents", label: "Documents", desc: "Docs & notes" },
+          { key: "memories", label: "Memories", desc: "Memory logs" },
+          { key: "taskNotes", label: "Task Notes", desc: "Mission docs" },
+          { key: "activities", label: "Activities", desc: "Event feed" },
+          { key: "scheduledTasks", label: "Scheduled", desc: "Cron tasks" },
+          { key: "mcAgents", label: "Agents", desc: "Roles" },
+          { key: "mcTasks", label: "Tasks", desc: "Mission tasks" },
+          { key: "mcStatus", label: "Status", desc: "Progress" },
+          { key: "mcBoardColumns", label: "Board", desc: "Pipeline cols" },
+        ] as const
+      ).map((item) => {
+        const values = trendWindow.map((entry) => entry.counts[item.key]);
+        return {
+          ...item,
+          value: latestSnapshot.counts[item.key],
+          sparkline: renderSparkline(values),
+          trendLabel: trendWindow.length > 1 ? "Last 30 days" : "No trend yet",
+        };
+      })
+    : [];
+
   return (
     <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 mb-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-200">Convex Health</h3>
+            <p className="text-xs text-slate-500">Counts per type and daily trend.</p>
+          </div>
+          <span className="text-xs text-slate-500">
+            {lastUpdated ? `Last updated ${formatTime(lastUpdated)}` : "No snapshots yet"}
+          </span>
+        </div>
+        {typeCards.length === 0 ? (
+          <p className="text-xs text-slate-500 mt-3">No trend yet.</p>
+        ) : (
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {typeCards.map((card) => (
+              <div
+                key={card.key}
+                className="rounded-lg border border-slate-800 bg-slate-950/70 p-3"
+                title={card.trendLabel}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">{card.label}</p>
+                    <p className="text-lg font-semibold text-slate-100">{card.value}</p>
+                    <p className="text-[10px] text-slate-500">{card.desc}</p>
+                  </div>
+                  {card.sparkline ?? (
+                    <span className="text-[10px] text-slate-500">No trend yet</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
