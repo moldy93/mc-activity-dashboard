@@ -287,34 +287,30 @@ function MissionControlOverview() {
     <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 mb-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-200">Convex Health</h3>
-            <p className="text-xs text-slate-500">Counts per type and daily trend.</p>
-          </div>
-          <span className="text-xs text-slate-500">
-            {lastUpdated ? `Last updated ${formatTime(lastUpdated)}` : "No snapshots yet"}
+      <div className="mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Convex Health</span>
+          <span className="text-[11px] text-slate-500">
+            {lastUpdated ? `Updated ${formatTime(lastUpdated)}` : "No snapshots"}
           </span>
         </div>
         {typeCards.length === 0 ? (
-          <p className="text-xs text-slate-500 mt-3">No trend yet.</p>
+          <p className="text-[11px] text-slate-500 mt-2">No trend yet.</p>
         ) : (
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
             {typeCards.map((card) => (
               <div
                 key={card.key}
-                className="rounded-lg border border-slate-800 bg-slate-950/70 p-3"
+                className="rounded-md border border-slate-800/60 bg-slate-950/50 px-2 py-2"
                 title={card.trendLabel}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">{card.label}</p>
-                    <p className="text-lg font-semibold text-slate-100">{card.value}</p>
-                    <p className="text-[10px] text-slate-500">{card.desc}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-500">{card.label}</p>
+                    <p className="text-sm font-semibold text-slate-100">{card.value}</p>
                   </div>
                   {card.sparkline ?? (
-                    <span className="text-[10px] text-slate-500">No trend yet</span>
+                    <span className="text-[10px] text-slate-500">—</span>
                   )}
                 </div>
               </div>
