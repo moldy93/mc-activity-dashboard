@@ -60,12 +60,14 @@ function parseSingleLine(content: string, label: string) {
 function parseTaskFile(content: string) {
   const titleMatch = content.match(/^# Task:\s*(.*)$/m);
   const titleLine = titleMatch ? titleMatch[1].trim() : "";
-  const [taskId, ...restTitle] = titleLine.split("—").map((s) => s.trim());
-  const title = restTitle.length ? restTitle.join(" — ") : taskId;
+  const projectId = extractProjectId(titleLine);
+  const title = projectId
+    ? titleLine.replace(projectId, "").replace(/^[-–—]+/, "").trim()
+    : titleLine;
 
   return {
-    taskId: taskId || titleLine || "unknown",
-    title,
+    taskId: projectId || titleLine || "unknown",
+    title: title || titleLine || projectId || "",
     owner: parseSingleLine(content, "Owner"),
     assignees: parseSingleLine(content, "Assignees")
       ?.split(/,|\//)
