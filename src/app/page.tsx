@@ -4,6 +4,15 @@ import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
+const dateFormatter = new Intl.DateTimeFormat("de-DE", {
+  timeZone: "Europe/Berlin",
+});
+const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
+  timeZone: "Europe/Berlin",
+  dateStyle: "short",
+  timeStyle: "short",
+});
+
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-4">
@@ -123,7 +132,7 @@ function WeeklyCalendar() {
           Next
         </button>
         <span className="text-sm text-slate-400 ml-2">
-          {range.monday.toLocaleDateString()} – {range.sunday.toLocaleDateString()}
+          {dateFormatter.format(range.monday)} – {dateFormatter.format(range.sunday)}
         </span>
       </div>
       <div className="grid grid-cols-1 gap-3">
@@ -140,7 +149,7 @@ function WeeklyCalendar() {
                 {task.title}
               </h3>
               <span className="text-xs text-slate-500">
-                {new Date(task.nextRunAt).toLocaleString()}
+                {dateTimeFormatter.format(new Date(task.nextRunAt))}
               </span>
             </div>
             {task.description && (
