@@ -51,7 +51,7 @@ function parseListBlock(content: string, heading: string) {
 }
 
 function parseSingleLine(content: string, label: string) {
-  const regex = new RegExp(`^${label}:\s*(.*)$`, "mi");
+  const regex = new RegExp(`^[-*]?\s*${label}:\s*(.*)$`, "mi");
   const match = content.match(regex);
   if (!match) return undefined;
   return typeof match[1] === "string" ? match[1].trim() : undefined;
