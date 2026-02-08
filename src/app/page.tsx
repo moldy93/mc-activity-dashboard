@@ -62,7 +62,7 @@ function ActivityFeed() {
   const activities = useQuery(api.activity.listRecent, { limit: 60 }) ?? [];
   const visible = activities.slice(0, 10);
   return (
-    <div id="activity" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <div id="activity" className="py-4">
       <div className="flex items-start justify-between gap-4">
         <SectionHeader
           title="Activity Feed"
@@ -75,7 +75,7 @@ function ActivityFeed() {
           <p className="text-sm text-slate-400">No activity yet.</p>
         )}
         {activities.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-slate-800">
+          <div className="border-y border-slate-800">
             <table className="w-full table-fixed text-left text-xs text-slate-300">
               <thead className="bg-slate-950/70 text-[10px] uppercase tracking-wide text-slate-500">
                 <tr>
@@ -147,7 +147,7 @@ function WeeklyCalendar() {
     ) ?? [];
 
   return (
-    <div id="schedule" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <div id="schedule" className="py-4">
       <div className="flex items-start justify-between gap-4">
         <SectionHeader
           title="Weekly Schedule"
@@ -197,7 +197,7 @@ function WeeklyCalendar() {
         {tasks.map((task) => (
           <div
             key={task._id}
-            className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
+            className="border-b border-slate-800 py-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -230,7 +230,7 @@ function MissionControlOverview() {
   const dailyCounts = useQuery(api.mc.listCountsDaily) ?? [];
   if (!data) {
     return (
-      <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <div id="mission-control" className="py-4">
         <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
         <p className="text-sm text-slate-400">Loading…</p>
       </div>
@@ -295,7 +295,7 @@ function MissionControlOverview() {
     : [];
 
   return (
-    <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+    <div id="mission-control" className="py-4">
       <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
 
 
@@ -304,7 +304,7 @@ function MissionControlOverview() {
           <h3 className="text-sm font-semibold text-slate-200">Agents</h3>
           <div className="mt-2 space-y-2">
             {data.agents.map((agent) => (
-              <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+              <div key={agent._id} className="border-b border-slate-800 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
                   <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
@@ -321,7 +321,7 @@ function MissionControlOverview() {
           <h3 className="text-sm font-semibold text-slate-200">Pipeline</h3>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {data.board.map((col) => (
-              <div key={col._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+              <div key={col._id} className="border-b border-slate-800 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs uppercase tracking-wide text-slate-400">{col.column}</span>
                   <span className="text-xs text-slate-500">{col.items.length}</span>
@@ -354,7 +354,7 @@ function MissionControlOverview() {
             .map((status) => {
               const task = taskById.get(status.taskId);
               return (
-                <div key={status._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <div key={status._id} className="border-b border-slate-800 py-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-100 font-semibold">
@@ -434,12 +434,9 @@ function GlobalSearch() {
       {items.length === 0 && (
         <p className="text-xs text-slate-500 mt-1">No matches.</p>
       )}
-      <div className="mt-2 space-y-2">
+      <div className="mt-2">
         {items.map((item) => (
-          <div
-            key={item._id}
-            className="rounded-md border border-slate-800 bg-slate-950/60 p-3"
-          >
+          <div key={item._id} className="border-b border-slate-800 py-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm text-slate-100 font-semibold">
                 {item.title}
@@ -456,25 +453,39 @@ function GlobalSearch() {
   );
 
   return (
-    <div id="search" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <SectionHeader
-        title="Global Search"
-        subtitle="Search memories, documents, and task notes indexed from workspace."
-      />
+    <div id="search" className="py-4">
       <input
         value={term}
         onChange={(e) => setTerm(e.target.value)}
         placeholder="Search anything..."
-        className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
+        className="w-full border-b border-slate-800 bg-transparent px-0 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-0"
       />
-      {!trimmed && (
-        <p className="text-xs text-slate-500 mt-2">Type to search.</p>
-      )}
       {trimmed && results && (
-        <div className="mt-4">
-          {renderSection("Memories", results.memories)}
-          {renderSection("Documents", results.documents)}
-          {renderSection("Task Notes", results.taskNotes)}
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur"
+            onClick={() => setTerm("")}
+          />
+          <div className="absolute inset-0 flex items-start justify-center px-4 py-12">
+            <div className="w-full max-w-4xl overflow-hidden rounded-xl border border-slate-800 bg-slate-950/90">
+              <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                  Search results
+                </div>
+                <button
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                  onClick={() => setTerm("")}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto px-4 py-4">
+                {renderSection("Memories", results.memories)}
+                {renderSection("Documents", results.documents)}
+                {renderSection("Task Notes", results.taskNotes)}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -484,22 +495,25 @@ function GlobalSearch() {
 export default function Home() {
   return (
     <>
-      <main className="min-h-screen px-6 py-10">
+      <main className="min-h-screen px-6 py-8">
+      <GlobalSearch />
 
-      <div className="mt-6">
+      <div className="border-t border-slate-800 pt-6">
         <MissionControlOverview />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ActivityFeed />
-        <WeeklyCalendar />
+      <div className="border-t border-slate-800 pt-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:divide-x xl:divide-slate-800">
+          <div className="xl:pr-6">
+            <ActivityFeed />
+          </div>
+          <div className="xl:pl-6">
+            <WeeklyCalendar />
+          </div>
+        </div>
       </div>
 
-      <div className="mt-6">
-        <GlobalSearch />
-      </div>
-
-      <div className="mt-6">
+      <div className="border-t border-slate-800 pt-6">
         <RecentLogs />
       </div>
     </main>
