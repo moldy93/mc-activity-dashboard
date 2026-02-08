@@ -260,8 +260,20 @@ async function main() {
     const latestByTask = new Map<string, typeof statusEntries[number]>();
     for (const entry of statusEntries) {
       const existing = latestByTask.get(entry.taskId);
-      if (!existing || entry.updatedAt >= existing.updatedAt) {
+      if (!existing) {
         latestByTask.set(entry.taskId, entry);
+        continue;
+      }
+      if (entry.updatedAt > existing.updatedAt) {
+        latestByTask.set(entry.taskId, entry);
+        continue;
+      }
+      if (entry.updatedAt === existing.updatedAt) {
+        const entryHasProgress = Boolean(entry.inProgress || entry.done);
+        const existingHasProgress = Boolean(existing.inProgress || existing.done);
+        if (entryHasProgress && !existingHasProgress) {
+          latestByTask.set(entry.taskId, entry);
+        }
       }
     }
 
