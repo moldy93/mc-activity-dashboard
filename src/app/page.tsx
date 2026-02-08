@@ -60,6 +60,7 @@ function ProjectBadge({ value }: { value?: string }) {
 
 function ActivityFeed() {
   const activities = useQuery(api.activity.listRecent, { limit: 60 }) ?? [];
+  const visible = activities.slice(0, 10);
   return (
     <div id="activity" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <div className="flex items-start justify-between gap-4">
@@ -67,39 +68,49 @@ function ActivityFeed() {
           title="Activity Feed"
           subtitle="Every action recorded. Ingest via /api/activity or Convex mutation."
         />
-        <Pill label={`${activities.length} events`} />
+        <Pill label={`${visible.length} of ${activities.length}`} />
       </div>
-      <div className="space-y-3">
+      <div className="mt-4">
         {activities.length === 0 && (
           <p className="text-sm text-slate-400">No activity yet.</p>
         )}
-        {activities.map((item) => (
-          <div
-            key={item._id}
-            className="rounded-xl border border-slate-800 bg-slate-950/60 p-4"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-slate-100">
-                  {item.title}
-                </h3>
-                <ProjectBadge value={item.title} />
-              </div>
-              <span className="text-xs text-slate-500">
-                {new Date(item.createdAt).toLocaleString()}
-              </span>
-            </div>
-            {item.detail && (
-              <p className="text-sm text-slate-300 mt-2 whitespace-pre-line">
-                {item.detail}
-              </p>
-            )}
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-              {item.kind && <span>Kind: {item.kind}</span>}
-              {item.source && <span>Source: {item.source}</span>}
-            </div>
+        {activities.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-slate-800">
+            <table className="w-full table-fixed text-left text-xs text-slate-300">
+              <thead className="bg-slate-950/70 text-[10px] uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="w-28 px-3 py-2">Time</th>
+                  <th className="px-3 py-2">Entry</th>
+                  <th className="w-24 px-3 py-2">Kind</th>
+                  <th className="w-28 px-3 py-2">Source</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {visible.map((item) => (
+                  <tr key={item._id} className="bg-slate-950/40">
+                    <td className="px-3 py-2 text-slate-500">
+                      {new Date(item.createdAt).toLocaleTimeString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="truncate text-slate-100">
+                          {item.title}
+                        </span>
+                        <ProjectBadge value={item.title} />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-slate-400">
+                      {item.kind || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-slate-400">
+                      {item.source || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -333,42 +344,49 @@ function MissionControlOverview() {
       <div className="mt-6">
         <h3 className="text-sm font-semibold text-slate-200">PM Insights</h3>
         <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {data.status.map((status) => {
-            const task = taskById.get(status.taskId);
-            return (
-              <div key={status._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-100 font-semibold">
-                      {task?.title || status.taskId}
-                    </span>
-                    <ProjectBadge value={task?.title || status.taskId} />
+          {data.status
+            .filter((status) => {
+              const task = taskById.get(status.taskId);
+              if (!task) return false;
+              const progress = (status.inProgress || "").toLowerCase();
+              return !progress.includes("done") && !progress.includes("complete");
+            })
+            .map((status) => {
+              const task = taskById.get(status.taskId);
+              return (
+                <div key={status._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-100 font-semibold">
+                        {task?.title || status.taskId}
+                      </span>
+                      <ProjectBadge value={task?.title || status.taskId} />
+                    </div>
+                    <span className="text-xs text-slate-500">{relativeDate(status.updatedAt)}</span>
                   </div>
-                  <span className="text-xs text-slate-500">{relativeDate(status.updatedAt)}</span>
+                  {status.inProgress && (
+                    <p className="text-xs text-slate-300 mt-2">
+                      <span className="text-slate-400">In Progress:</span> {status.inProgress}
+                    </p>
+                  )}
+                  {status.next && (
+                    <p className="text-xs text-slate-300 mt-1">
+                      <span className="text-slate-400">Next:</span> {status.next}
+                    </p>
+                  )}
+                  {status.needFromYou && (
+                    <p className="text-xs text-amber-300 mt-1">
+                      <span className="text-amber-200">Need from you:</span> {status.needFromYou}
+                    </p>
+                  )}
+                  {status.risks && (
+                    <p className="text-xs text-rose-300 mt-1">
+                      <span className="text-rose-200">Risks:</span> {status.risks}
+                    </p>
+                  )}
                 </div>
-                {status.inProgress && (
-                  <p className="text-xs text-slate-300 mt-2">
-                    <span className="text-slate-400">In Progress:</span> {status.inProgress}
-                  </p>
-                )}
-                {status.next && (
-                  <p className="text-xs text-slate-300 mt-1">
-                    <span className="text-slate-400">Next:</span> {status.next}
-                  </p>
-                )}
-                {status.needFromYou && (
-                  <p className="text-xs text-amber-300 mt-1">
-                    <span className="text-amber-200">Need from you:</span> {status.needFromYou}
-                  </p>
-                )}
-                {status.risks && (
-                  <p className="text-xs text-rose-300 mt-1">
-                    <span className="text-rose-200">Risks:</span> {status.risks}
-                  </p>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
     </div>
