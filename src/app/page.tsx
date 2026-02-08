@@ -290,6 +290,16 @@ function MissionControlOverview() {
   );
 }
 
+function formatLogTime(value?: string) {
+  if (!value) return "";
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return "";
+  return dt.toLocaleTimeString("de-DE", {
+    timeZone: "Europe/Berlin",
+    hour12: false,
+  });
+}
+
 function formatLogLine(line: string) {
   const trimmed = line.trim();
   if (!trimmed) return [{ text: line, className: "text-slate-400" }];
@@ -334,7 +344,7 @@ function formatLogLine(line: string) {
 
       if (!msg) return [{ text: "(no message)", className: "text-slate-500" }];
       return [
-        time ? { text: `[${time}]`, className: "text-sky-200" } : null,
+        time ? { text: formatLogTime(time), className: "text-sky-200" } : null,
         { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
         subsystem ? { text: `${subsystem}`.padEnd(12, " "), className: "text-purple-200" } : null,
         { text: msg.toString(), className: "text-slate-100" },
@@ -350,7 +360,7 @@ function formatLogLine(line: string) {
     const text = msg || trimmed;
     return [
       { text: firstLevel.toUpperCase().padEnd(5, " "), className: levelColor(firstLevel) },
-      { text: `[${time}]`, className: "text-sky-200" },
+      { text: formatLogTime(time), className: "text-sky-200" },
       { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
       { text, className: "text-slate-100" },
     ];
@@ -360,7 +370,7 @@ function formatLogLine(line: string) {
   if (match) {
     const [, time, level, msg] = match;
     return [
-      { text: `[${time}]`, className: "text-sky-200" },
+      { text: formatLogTime(time), className: "text-sky-200" },
       { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
       { text: msg, className: "text-slate-100" },
     ];
@@ -417,13 +427,13 @@ function RecentLogs() {
       <SectionHeader title="Recent Logs" subtitle="OpenClaw gateway log tail." />
       <div
         ref={containerRef}
-        className="mt-3 max-h-64 overflow-y-auto rounded-md border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200"
+        className="mt-3 max-h-64 overflow-y-auto overflow-x-auto rounded-md border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200"
       >
         {lines.length === 0 && <div className="text-slate-500">No log output.</div>}
         {lines.map((line, idx) => {
           const parts = formatLogLine(line);
           return (
-            <div key={`${idx}-${line}`} className="whitespace-pre-wrap">
+            <div key={`${idx}-${line}`} className="whitespace-pre">
               {parts.map((part, partIdx) => (
                 <span key={partIdx} className={part.className}>
                   {partIdx > 0 ? " " : ""}
