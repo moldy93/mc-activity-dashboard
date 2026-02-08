@@ -290,6 +290,50 @@ function MissionControlOverview() {
   );
 }
 
+function formatLogLine(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed) return [{ text: line, className: "text-slate-400" }];
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const time = parsed.time || parsed.ts || parsed.timestamp;
+      const level = (parsed.level || parsed.sev || parsed.severity || "info").toString();
+      const msg = parsed.msg || parsed.message || parsed.event || parsed.data || "";
+      return [
+        time ? { text: `[${time}]`, className: "text-sky-200" } : null,
+        { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
+        { text: msg.toString(), className: "text-slate-100" },
+      ].filter(Boolean) as { text: string; className: string }[];
+    } catch {
+      // fallthrough
+    }
+  }
+
+  const match = trimmed.match(
+    /^(\d{4}-\d{2}-\d{2}[^\s]*)\s+(\w+)\s+(.*)$/
+  );
+  if (match) {
+    const [, time, level, msg] = match;
+    return [
+      { text: `[${time}]`, className: "text-sky-200" },
+      { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
+      { text: msg, className: "text-slate-100" },
+    ];
+  }
+
+  return [{ text: line, className: "text-slate-100" }];
+}
+
+function levelColor(level: string) {
+  const key = level.toLowerCase();
+  if (key.includes("error") || key.includes("fatal")) return "text-rose-300";
+  if (key.includes("warn")) return "text-amber-200";
+  if (key.includes("debug") || key.includes("trace")) return "text-violet-200";
+  if (key.includes("info")) return "text-emerald-200";
+  return "text-slate-300";
+}
+
 function RecentLogs() {
   const [lines, setLines] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -329,14 +373,22 @@ function RecentLogs() {
       <SectionHeader title="Recent Logs" subtitle="OpenClaw gateway log tail." />
       <div
         ref={containerRef}
-        className="mt-3 max-h-64 overflow-y-auto rounded-md border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-slate-200"
+        className="mt-3 max-h-64 overflow-y-auto rounded-md border border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200"
       >
         {lines.length === 0 && <div className="text-slate-500">No log output.</div>}
-        {lines.map((line, idx) => (
-          <div key={`${idx}-${line}`} className="whitespace-pre-wrap">
-            {line}
-          </div>
-        ))}
+        {lines.map((line, idx) => {
+          const parts = formatLogLine(line);
+          return (
+            <div key={`${idx}-${line}`} className="whitespace-pre-wrap">
+              {parts.map((part, partIdx) => (
+                <span key={partIdx} className={part.className}>
+                  {partIdx > 0 ? " " : ""}
+                  {part.text}
+                </span>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
