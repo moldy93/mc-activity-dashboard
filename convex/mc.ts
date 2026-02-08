@@ -1,0 +1,110 @@
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const upsertAgent = mutation({
+  args: {
+    role: v.string(),
+    mission: v.optional(v.string()),
+    responsibilities: v.optional(v.array(v.string())),
+    statusCadence: v.optional(v.string()),
+    outputStandard: v.optional(v.string()),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcAgents")
+      .withIndex("by_role", (q) => q.eq("role", args.role))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+      return existing._id;
+    }
+    return await ctx.db.insert("mcAgents", args);
+  },
+});
+
+export const upsertTask = mutation({
+  args: {
+    taskId: v.string(),
+    title: v.string(),
+    owner: v.optional(v.string()),
+    assignees: v.optional(v.array(v.string())),
+    status: v.optional(v.string()),
+    createdAt: v.optional(v.string()),
+    context: v.optional(v.string()),
+    goal: v.optional(v.string()),
+    scope: v.optional(v.string()),
+    plan: v.optional(v.string()),
+    acceptanceCriteria: v.optional(v.array(v.string())),
+    risks: v.optional(v.string()),
+    links: v.optional(v.array(v.string())),
+    filePath: v.string(),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcTasks")
+      .withIndex("by_taskId", (q) => q.eq("taskId", args.taskId))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+      return existing._id;
+    }
+    return await ctx.db.insert("mcTasks", args);
+  },
+});
+
+export const upsertStatus = mutation({
+  args: {
+    taskId: v.string(),
+    done: v.optional(v.string()),
+    inProgress: v.optional(v.string()),
+    next: v.optional(v.string()),
+    eta: v.optional(v.string()),
+    needFromYou: v.optional(v.string()),
+    risks: v.optional(v.string()),
+    filePath: v.string(),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcStatus")
+      .withIndex("by_taskId", (q) => q.eq("taskId", args.taskId))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+      return existing._id;
+    }
+    return await ctx.db.insert("mcStatus", args);
+  },
+});
+
+export const upsertBoardColumn = mutation({
+  args: {
+    column: v.string(),
+    items: v.array(v.string()),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcBoardColumns")
+      .withIndex("by_column", (q) => q.eq("column", args.column))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+      return existing._id;
+    }
+    return await ctx.db.insert("mcBoardColumns", args);
+  },
+});
+
+export const getOverview = query({
+  args: {},
+  handler: async (ctx) => {
+    const agents = await ctx.db.query("mcAgents").collect();
+    const tasks = await ctx.db.query("mcTasks").collect();
+    const status = await ctx.db.query("mcStatus").collect();
+    const board = await ctx.db.query("mcBoardColumns").collect();
+    return { agents, tasks, status, board };
+  },
+});

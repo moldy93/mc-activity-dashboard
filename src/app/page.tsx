@@ -13,6 +13,17 @@ const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
   timeStyle: "short",
 });
 
+const relativeDate = (ms?: number) => {
+  if (!ms) return "";
+  const diff = Date.now() - ms;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-4">
@@ -180,6 +191,105 @@ function WeeklyCalendar() {
   );
 }
 
+function MissionControlOverview() {
+  const data = useQuery(api.mc.getOverview);
+  if (!data) {
+    return (
+      <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
+        <p className="text-sm text-slate-400">Loading…</p>
+      </div>
+    );
+  }
+
+  const statusByTask = new Map(data.status.map((s) => [s.taskId, s]));
+  const taskById = new Map(data.tasks.map((t) => [t.taskId, t]));
+
+  return (
+    <div id="mission-control" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-200">Agents</h3>
+          <div className="mt-2 space-y-2">
+            {data.agents.map((agent) => (
+              <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
+                  <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
+                </div>
+                {agent.mission && (
+                  <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-slate-200">Pipeline</h3>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {data.board.map((col) => (
+              <div key={col._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wide text-slate-400">{col.column}</span>
+                  <span className="text-xs text-slate-500">{col.items.length}</span>
+                </div>
+                <ul className="mt-2 space-y-1 text-xs text-slate-300">
+                  {col.items.length === 0 && <li className="text-slate-500">—</li>}
+                  {col.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-slate-200">PM Insights</h3>
+        <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {data.status.map((status) => {
+            const task = taskById.get(status.taskId);
+            return (
+              <div key={status._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-100 font-semibold">
+                    {task?.title || status.taskId}
+                  </span>
+                  <span className="text-xs text-slate-500">{relativeDate(status.updatedAt)}</span>
+                </div>
+                {status.inProgress && (
+                  <p className="text-xs text-slate-300 mt-2">
+                    <span className="text-slate-400">In Progress:</span> {status.inProgress}
+                  </p>
+                )}
+                {status.next && (
+                  <p className="text-xs text-slate-300 mt-1">
+                    <span className="text-slate-400">Next:</span> {status.next}
+                  </p>
+                )}
+                {status.needFromYou && (
+                  <p className="text-xs text-amber-300 mt-1">
+                    <span className="text-amber-200">Need from you:</span> {status.needFromYou}
+                  </p>
+                )}
+                {status.risks && (
+                  <p className="text-xs text-rose-300 mt-1">
+                    <span className="text-rose-200">Risks:</span> {status.risks}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GlobalSearch() {
   const [term, setTerm] = useState("");
   const results = useQuery(api.search.global, { term, limit: 10 });
@@ -271,6 +381,12 @@ export default function Home() {
               Schedule
             </a>
             <a
+              href="#mission-control"
+              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Mission Control
+            </a>
+            <a
               href="#search"
               className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
             >
@@ -283,6 +399,10 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ActivityFeed />
         <WeeklyCalendar />
+      </div>
+
+      <div className="mt-6">
+        <MissionControlOverview />
       </div>
 
       <div className="mt-6">

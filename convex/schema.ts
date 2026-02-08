@@ -48,4 +48,49 @@ export default defineSchema({
     searchField: "content",
     filterFields: ["path"],
   }),
+
+  mcAgents: defineTable({
+    role: v.string(),
+    mission: v.optional(v.string()),
+    responsibilities: v.optional(v.array(v.string())),
+    statusCadence: v.optional(v.string()),
+    outputStandard: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_role", ["role"]),
+
+  mcTasks: defineTable({
+    taskId: v.string(),
+    title: v.string(),
+    owner: v.optional(v.string()),
+    assignees: v.optional(v.array(v.string())),
+    status: v.optional(v.string()),
+    createdAt: v.optional(v.string()),
+    context: v.optional(v.string()),
+    goal: v.optional(v.string()),
+    scope: v.optional(v.string()),
+    plan: v.optional(v.string()),
+    acceptanceCriteria: v.optional(v.array(v.string())),
+    risks: v.optional(v.string()),
+    links: v.optional(v.array(v.string())),
+    filePath: v.string(),
+    updatedAt: v.number(),
+  }).index("by_taskId", ["taskId"]),
+
+  mcStatus: defineTable({
+    taskId: v.string(),
+    done: v.optional(v.string()),
+    inProgress: v.optional(v.string()),
+    next: v.optional(v.string()),
+    eta: v.optional(v.string()),
+    needFromYou: v.optional(v.string()),
+    risks: v.optional(v.string()),
+    filePath: v.string(),
+    updatedAt: v.number(),
+  }).index("by_taskId", ["taskId"]),
+
+  mcBoardColumns: defineTable({
+    column: v.string(),
+    items: v.array(v.string()),
+    updatedAt: v.number(),
+  }).index("by_column", ["column"]),
 });
