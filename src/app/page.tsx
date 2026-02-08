@@ -44,7 +44,7 @@ function Pill({ label }: { label: string }) {
 
 const extractProjectId = (value?: string) => {
   if (!value) return null;
-  const match = value.match(/[a-z]+-\d{3}(?:-\d{2})?/i);
+  const match = value.match(/[a-z0-9]+-\d{3}(?:-\d{2})?/i);
   return match ? match[0].toLowerCase() : null;
 };
 
