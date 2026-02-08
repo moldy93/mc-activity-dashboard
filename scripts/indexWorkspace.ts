@@ -103,7 +103,7 @@ function parseStatusSection(section: string, fallbackId: string) {
   };
 }
 
-function parseStatusFile(content: string) {
+function parseStatusFile(content: string, filePath?: string) {
   const sections = content.split(/\n##\s+/).map((block, index) => {
     if (index === 0) return null;
     const [headerLine, ...rest] = block.split("\n");
@@ -112,10 +112,12 @@ function parseStatusFile(content: string) {
   }).filter(Boolean) as { header: string; body: string }[];
 
   if (sections.length > 0) {
+    const projectIdFromPath = extractProjectId(filePath);
     return sections
       .map((section) => {
         const projectId = extractProjectId(section.header);
         if (!projectId) return null;
+        if (projectIdFromPath && projectId !== projectIdFromPath) return null;
         const parsed = parseStatusSection(section.body, projectId);
         const hasAnyField = Boolean(
           parsed.done ||
@@ -134,7 +136,7 @@ function parseStatusFile(content: string) {
   const titleMatch = content.match(/^#\s*Status:\s*(.*)$/m);
   const headerValue = header ? header[1].trim() : undefined;
   const titleValue = titleMatch ? titleMatch[1].trim() : undefined;
-  const projectId = extractProjectId(headerValue) || extractProjectId(titleValue);
+  const projectId = extractProjectId(headerValue) || extractProjectId(titleValue) || extractProjectId(filePath);
   if (!projectId) return [];
   return [parseStatusSection(content, projectId)];
 }
@@ -223,8 +225,8 @@ async function main() {
           updatedAt: stats.mtimeMs,
         });
       } else if (filePath.includes(`${path.sep}status${path.sep}`)) {
-        const parsed = parseStatusFile(content);
         const relPath = filePath.replace(WORKSPACE_ROOT, "");
+        const parsed = parseStatusFile(content, relPath);
         const keepTaskIds = parsed.map((status) => status.taskId);
         await client.mutation("mc:cleanupStatusByFile", {
           filePath: relPath,
