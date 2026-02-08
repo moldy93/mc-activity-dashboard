@@ -292,17 +292,19 @@ function MissionControlOverview() {
         <div>
           <h3 className="text-sm font-semibold text-slate-200">Agents</h3>
           <div className="mt-2 space-y-2">
-            {data.agents.map((agent) => (
-              <div key={agent._id} className="border-b border-slate-800 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
-                  <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
+            <div className="grid grid-cols-1 gap-3">
+              {data.agents.map((agent) => (
+                <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
+                    <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
+                  </div>
+                  {agent.mission && (
+                    <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
+                  )}
                 </div>
-                {agent.mission && (
-                  <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
