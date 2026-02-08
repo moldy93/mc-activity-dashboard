@@ -190,7 +190,7 @@ const requestLogs = () => {
 };
 
 const timeout = setTimeout(() => {
-  fail("timeout");
+  finish({ lines: [], timedOut: true });
 }, timeoutMs);
 
 ws.on("open", () => {
