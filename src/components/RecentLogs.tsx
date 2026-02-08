@@ -143,8 +143,9 @@ export default function RecentLogs({
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sinceRef = useRef<number | null>(null);
-  const [levelFilter, setLevelFilter] = useState<string[]>([]);
+  const [levelFilter, setLevelFilter] = useState<string[]>(["ERROR", "WARN", "INFO"]);
   const [subsystemFilter, setSubsystemFilter] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -191,7 +192,7 @@ export default function RecentLogs({
     [entries]
   );
 
-  const activeLevels = levelFilter.length ? levelFilter : availableLevels;
+  const activeLevels = levelFilter.length ? levelFilter : ["ERROR", "WARN", "INFO"];
   const filteredEntries = useMemo(() => {
     const subsystemQuery = subsystemFilter.trim().toLowerCase();
     return entries.filter((entry) => {
@@ -222,11 +223,11 @@ export default function RecentLogs({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-        {availableLevels.map((level) => (
+        {["ERROR", "WARN", "INFO"].map((level) => (
           <button
             key={level}
             className={`rounded-full border px-3 py-1 ${
-              levelFilter.length === 0 || levelFilter.includes(level)
+              levelFilter.includes(level)
                 ? "border-slate-500 bg-slate-800 text-slate-100"
                 : "border-slate-700 bg-slate-900 text-slate-400"
             }`}
@@ -235,16 +236,31 @@ export default function RecentLogs({
             {level}
           </button>
         ))}
-        <input
-          value={subsystemFilter}
-          onChange={(event) => setSubsystemFilter(event.target.value)}
-          placeholder={
-            availableSubsystems.length
-              ? `Subsystem (e.g. ${availableSubsystems[0]})`
-              : "Subsystem filter"
-          }
-          className="ml-auto min-w-[180px] rounded-md border border-slate-700 bg-slate-950 px-3 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
-        />
+        <button
+          className={`rounded-full border px-3 py-1 ${
+            showSearch
+              ? "border-slate-500 bg-slate-800 text-slate-100"
+              : "border-slate-700 bg-slate-900 text-slate-400"
+          }`}
+          onClick={() => {
+            setShowSearch((prev) => !prev);
+            if (showSearch) setSubsystemFilter("");
+          }}
+        >
+          Search
+        </button>
+        {showSearch && (
+          <input
+            value={subsystemFilter}
+            onChange={(event) => setSubsystemFilter(event.target.value)}
+            placeholder={
+              availableSubsystems.length
+                ? `Subsystem (e.g. ${availableSubsystems[0]})`
+                : "Subsystem filter"
+            }
+            className="ml-auto min-w-[180px] rounded-md border border-slate-700 bg-slate-950 px-3 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
+          />
+        )}
       </div>
 
       <div
