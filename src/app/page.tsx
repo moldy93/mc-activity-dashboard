@@ -162,8 +162,8 @@ function WeeklyCalendar() {
   const weekdayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short" });
 
   return (
-    <div id="schedule" className="py-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+    <div id="schedule" className="py-4 h-full flex flex-col">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 flex-1">
         {days.map((day) => {
           const key = day.toDateString();
           const entries = tasksByDay.get(key) || [];
@@ -488,10 +488,10 @@ export default function Home() {
 
       <div className="pt-6">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <div>
+          <div className="h-full">
             <WeeklyCalendar />
           </div>
-          <div>
+          <div className="h-full">
             <RecentLogs />
           </div>
         </div>

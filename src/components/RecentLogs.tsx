@@ -231,7 +231,7 @@ export default function RecentLogs() {
   };
 
   return (
-    <div id="logs" className="py-4">
+    <div id="logs" className="py-4 h-full flex flex-col">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
         {["ERROR", "WARN", "INFO", "DEBUG"].map((level) => (
           <button
@@ -260,7 +260,7 @@ export default function RecentLogs() {
 
       <div
         ref={containerRef}
-        className="mt-3 max-h-64 overflow-y-auto overflow-x-auto border-y border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200"
+        className="mt-3 flex-1 overflow-y-auto overflow-x-auto border-y border-slate-800 bg-slate-950/80 p-3 font-mono text-xs text-slate-200"
       >
         {loading && <div className="text-slate-500">Loading logs…</div>}
         {!loading && error && (
