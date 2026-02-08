@@ -1,4 +1,5 @@
-import WebSocket from "ws";
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 
 const gatewayWs = process.env.OPENCLAW_GATEWAY_WS || "ws://host.docker.internal:18789";
@@ -9,7 +10,8 @@ export async function GET() {
     return NextResponse.json({ error: "missing gateway token" }, { status: 500 });
   }
 
-  const result = await new Promise<{ lines: string[] }>((resolve, reject) => {
+  const result = await new Promise<{ lines: string[] }>(async (resolve, reject) => {
+    const { default: WebSocket } = await import("ws");
     const ws = new WebSocket(gatewayWs, {
       headers: {
         Authorization: `Bearer ${gatewayToken}`,
