@@ -487,22 +487,22 @@ export default function Home() {
       <main className="min-h-screen px-6 py-8">
       <GlobalSearch />
 
-      <div className="border-t border-slate-800 pt-6">
+      <div className="pt-6">
         <MissionControlOverview />
       </div>
 
-      <div className="border-t border-slate-800 pt-6">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:divide-x xl:divide-slate-800">
-          <div className="xl:pr-6">
+      <div className="pt-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div>
             <ActivityFeed />
           </div>
-          <div className="xl:pl-6">
+          <div>
             <WeeklyCalendar />
           </div>
         </div>
       </div>
 
-      <div className="border-t border-slate-800 pt-6">
+      <div className="pt-6">
         <RecentLogs />
       </div>
     </main>
