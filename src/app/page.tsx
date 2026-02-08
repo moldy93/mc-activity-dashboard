@@ -391,17 +391,25 @@ function levelColor(level: string) {
 function RecentLogs() {
   const [lines, setLines] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const sinceRef = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
 
     const fetchLogs = async () => {
       try {
-        const res = await fetch(`/api/openclaw/logs`);
+        const query = sinceRef.current ? `?sinceMs=${sinceRef.current}` : "";
+        const res = await fetch(`/api/openclaw/logs${query}`);
         if (!res.ok) return;
         const data = await res.json();
         if (active) {
-          setLines(data.lines || []);
+          if (data.lastTimeMs) {
+            sinceRef.current = data.lastTimeMs + 1;
+          }
+          const nextLines = data.lines || [];
+          if (nextLines.length > 0) {
+            setLines((prev) => [...prev, ...nextLines].slice(-400));
+          }
         }
       } catch {
         // ignore

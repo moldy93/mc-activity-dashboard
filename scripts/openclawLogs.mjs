@@ -91,6 +91,8 @@ const publicKeyRawBase64UrlFromPem = (publicKeyPem) => base64UrlEncode(derivePub
 const timeoutMs = 10000;
 let settled = false;
 
+const sinceMs = Number(process.argv[2] || "0");
+
 const ws = new WebSocket(gatewayWs, {
   headers: {
     Authorization: `Bearer ${gatewayToken}`,
@@ -171,12 +173,16 @@ const sendConnect = (challenge) => {
 
 const requestLogs = () => {
   const id = crypto.randomUUID();
+  const params = { cursor: 0, limit: 200, maxBytes: 200000 };
+  if (Number.isFinite(sinceMs) && sinceMs > 0) {
+    params.sinceMs = sinceMs;
+  }
   ws.send(
     JSON.stringify({
       type: "req",
       id,
       method: "logs.tail",
-      params: { cursor: 0, limit: 200, maxBytes: 200000 },
+      params,
     })
   );
 };

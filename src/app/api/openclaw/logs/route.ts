@@ -4,11 +4,15 @@ import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
 
-export async function GET() {
+export async function GET(request: Request) {
   const scriptPath = path.join(process.cwd(), "scripts", "openclawLogs.mjs");
+  const url = new URL(request.url);
+  const sinceMs = url.searchParams.get("sinceMs");
 
-  const result = await new Promise<{ lines: string[] }>((resolve, reject) => {
-    const child = spawn("node", [scriptPath], {
+  const result = await new Promise<{ lines: string[]; lastTimeMs?: number }>((resolve, reject) => {
+    const args = [scriptPath];
+    if (sinceMs) args.push(sinceMs);
+    const child = spawn("node", args, {
       env: process.env,
     });
 
@@ -27,7 +31,21 @@ export async function GET() {
       if (code === 0) {
         try {
           const payload = JSON.parse(stdout.trim() || "{}") as { lines?: string[] };
-          resolve({ lines: payload.lines || [] });
+          const lines = payload.lines || [];
+          let lastTimeMs: number | undefined;
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line);
+              const time = parsed.time || parsed.ts || parsed.timestamp || parsed._meta?.date;
+              const ms = time ? Date.parse(time) : NaN;
+              if (!Number.isNaN(ms)) {
+                lastTimeMs = lastTimeMs ? Math.max(lastTimeMs, ms) : ms;
+              }
+            } catch {
+              // ignore
+            }
+          }
+          resolve({ lines, lastTimeMs });
         } catch (err) {
           reject(err);
         }
