@@ -142,7 +142,7 @@ export default function RecentLogs({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const sinceRef = useRef<number | null>(null);
+  const cursorRef = useRef<number | null>(null);
   const [levelFilter, setLevelFilter] = useState<string[]>(["ERROR", "WARN", "INFO"]);
   const [subsystemFilter, setSubsystemFilter] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -152,14 +152,14 @@ export default function RecentLogs({
 
     const fetchLogs = async () => {
       try {
-        const query = sinceRef.current ? `?sinceMs=${sinceRef.current}` : "";
+        const query = cursorRef.current ? `?cursor=${cursorRef.current}` : "";
         const res = await fetch(`/api/openclaw/logs${query}`);
         if (!res.ok) throw new Error("Log fetch failed");
         const data = await res.json();
         if (!active) return;
 
-        if (data.lastTimeMs) {
-          sinceRef.current = data.lastTimeMs + 1;
+        if (typeof data.cursor === "number") {
+          cursorRef.current = data.cursor;
         }
         const nextLines = data.lines || [];
         if (nextLines.length > 0) {

@@ -93,7 +93,7 @@ const logLimit = 200;
 const maxBytes = 200000;
 let settled = false;
 
-const sinceMs = Number(process.argv[2] || "0");
+const cursor = Number(process.argv[2] || "0");
 
 const ws = new WebSocket(gatewayWs, {
   headers: {
@@ -175,10 +175,7 @@ const sendConnect = (challenge) => {
 
 const requestLogs = () => {
   const id = crypto.randomUUID();
-  const params = { cursor: 0, limit: logLimit, maxBytes };
-  if (Number.isFinite(sinceMs) && sinceMs > 0) {
-    params.sinceMs = sinceMs;
-  }
+  const params = { cursor: Number.isFinite(cursor) && cursor > 0 ? cursor : 0, limit: logLimit, maxBytes };
   ws.send(
     JSON.stringify({
       type: "req",
@@ -210,7 +207,7 @@ ws.on("message", (raw) => {
     }
     if (payload?.type === "res" && payload?.ok && payload?.payload?.lines) {
       clearTimeout(timeout);
-      finish({ lines: payload.payload.lines || [] });
+      finish({ lines: payload.payload.lines || [], cursor: payload.payload.cursor || 0 });
     }
   } catch {
     // ignore

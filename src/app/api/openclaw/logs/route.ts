@@ -4,25 +4,14 @@ import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
 
-const extractLogTimeMs = (line: string) => {
-  try {
-    const parsed = JSON.parse(line);
-    const time = parsed.time || parsed.ts || parsed.timestamp || parsed._meta?.date;
-    const ms = time ? Date.parse(time) : NaN;
-    return Number.isNaN(ms) ? undefined : ms;
-  } catch {
-    return undefined;
-  }
-};
-
 export async function GET(request: Request) {
   const scriptPath = path.join(process.cwd(), "scripts", "openclawLogs.mjs");
   const url = new URL(request.url);
-  const sinceMs = url.searchParams.get("sinceMs");
+  const cursor = url.searchParams.get("cursor");
 
-  const result = await new Promise<{ lines: string[]; lastTimeMs?: number }>((resolve, reject) => {
+  const result = await new Promise<{ lines: string[]; cursor?: number }>((resolve, reject) => {
     const args = [scriptPath];
-    if (sinceMs) args.push(sinceMs);
+    if (cursor) args.push(cursor);
     const child = spawn("node", args, {
       env: process.env,
     });
@@ -43,14 +32,8 @@ export async function GET(request: Request) {
         try {
           const payload = JSON.parse(stdout.trim() || "{}") as { lines?: string[] };
           const lines = payload.lines || [];
-          let lastTimeMs: number | undefined;
-          for (const line of lines) {
-            const ms = extractLogTimeMs(line);
-            if (ms) {
-              lastTimeMs = lastTimeMs ? Math.max(lastTimeMs, ms) : ms;
-            }
-          }
-          resolve({ lines, lastTimeMs });
+          const nextCursor = typeof payload.cursor === "number" ? payload.cursor : undefined;
+          resolve({ lines, cursor: nextCursor });
         } catch (err) {
           reject(err);
         }
