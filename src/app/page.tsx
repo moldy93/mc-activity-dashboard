@@ -64,10 +64,6 @@ function ActivityFeed() {
   return (
     <div id="activity" className="py-4">
       <div className="flex items-start justify-between gap-4">
-        <SectionHeader
-          title="Activity Feed"
-          subtitle="Every action recorded. Ingest via /api/activity or Convex mutation."
-        />
         <Pill label={`${visible.length} of ${activities.length}`} />
       </div>
       <div className="mt-4">
@@ -149,10 +145,6 @@ function WeeklyCalendar() {
   return (
     <div id="schedule" className="py-4">
       <div className="flex items-start justify-between gap-4">
-        <SectionHeader
-          title="Weekly Schedule"
-          subtitle="Upcoming scheduled tasks (from Convex)."
-        />
         <Pill label={`${tasks.length} tasks`} />
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -231,7 +223,6 @@ function MissionControlOverview() {
   if (!data) {
     return (
       <div id="mission-control" className="py-4">
-        <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
         <p className="text-sm text-slate-400">Loading…</p>
       </div>
     );
@@ -296,8 +287,6 @@ function MissionControlOverview() {
 
   return (
     <div id="mission-control" className="py-4">
-      <SectionHeader title="Mission Control" subtitle="Agents, pipeline, and PM insights." />
-
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
