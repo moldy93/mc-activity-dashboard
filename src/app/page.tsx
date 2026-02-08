@@ -305,13 +305,22 @@ function formatLogLine(line: string) {
         parsed._meta?.logLevelName ||
         "info"
       ).toString();
-      const msg =
+      const rawMsg =
         parsed.msg ||
         parsed.message ||
         parsed.event ||
         parsed.data ||
         parsed["2"] ||
+        parsed["1"] ||
+        parsed["0"] ||
         "";
+
+      let msg = "";
+      if (typeof rawMsg === "string") {
+        msg = rawMsg;
+      } else if (rawMsg && typeof rawMsg === "object") {
+        msg = JSON.stringify(rawMsg);
+      }
 
       let subsystem = parsed.subsystem || parsed.source || parsed._meta?.name || parsed["0"];
       if (typeof subsystem === "string" && subsystem.startsWith("{")) {
@@ -323,7 +332,7 @@ function formatLogLine(line: string) {
         }
       }
 
-      if (!msg) return [{ text: line, className: "text-slate-100" }];
+      if (!msg) return [{ text: "(no message)", className: "text-slate-500" }];
       return [
         time ? { text: `[${time}]`, className: "text-sky-200" } : null,
         { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
