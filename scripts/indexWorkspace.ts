@@ -232,7 +232,7 @@ async function main() {
         });
         for (const status of parsed) {
           const projectId = extractProjectId(status.taskId);
-          if (projectId && taskTitleById.has(status.taskId)) {
+          if (projectId) {
             statusEntries.push({
               taskId: status.taskId,
               done: status.done,
