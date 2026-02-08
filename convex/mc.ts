@@ -54,6 +54,24 @@ export const upsertTask = mutation({
   },
 });
 
+export const cleanupTasksByFile = mutation({
+  args: {
+    filePath: v.string(),
+    keepTaskId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcTasks")
+      .withIndex("by_filePath", (q) => q.eq("filePath", args.filePath))
+      .collect();
+    for (const doc of existing) {
+      if (doc.taskId !== args.keepTaskId) {
+        await ctx.db.delete(doc._id);
+      }
+    }
+  },
+});
+
 export const upsertStatus = mutation({
   args: {
     taskId: v.string(),
@@ -76,6 +94,24 @@ export const upsertStatus = mutation({
       return existing._id;
     }
     return await ctx.db.insert("mcStatus", args);
+  },
+});
+
+export const cleanupStatusByFile = mutation({
+  args: {
+    filePath: v.string(),
+    keepTaskIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcStatus")
+      .withIndex("by_filePath", (q) => q.eq("filePath", args.filePath))
+      .collect();
+    for (const doc of existing) {
+      if (!args.keepTaskIds.includes(doc.taskId)) {
+        await ctx.db.delete(doc._id);
+      }
+    }
   },
 });
 

@@ -74,7 +74,9 @@ export default defineSchema({
     links: v.optional(v.array(v.string())),
     filePath: v.string(),
     updatedAt: v.number(),
-  }).index("by_taskId", ["taskId"]),
+  })
+    .index("by_taskId", ["taskId"])
+    .index("by_filePath", ["filePath"]),
 
   mcStatus: defineTable({
     taskId: v.string(),
@@ -86,7 +88,9 @@ export default defineSchema({
     risks: v.optional(v.string()),
     filePath: v.string(),
     updatedAt: v.number(),
-  }).index("by_taskId", ["taskId"]),
+  })
+    .index("by_taskId", ["taskId"])
+    .index("by_filePath", ["filePath"]),
 
   mcBoardColumns: defineTable({
     column: v.string(),

@@ -112,7 +112,13 @@ function parseStatusFile(content: string) {
   }).filter(Boolean) as { header: string; body: string }[];
 
   if (sections.length > 0) {
-    return sections.map((section) => parseStatusSection(section.body, section.header));
+    return sections
+      .map((section) => {
+        const projectId = extractProjectId(section.header);
+        if (!projectId) return null;
+        return parseStatusSection(section.body, projectId);
+      })
+      .filter(Boolean) as ReturnType<typeof parseStatusSection>[];
   }
 
   const header = content.match(/^\[STATUS\]\s*(.*)$/m);
@@ -177,17 +183,28 @@ async function main() {
         });
       } else if (filePath.includes(`${path.sep}tasks${path.sep}`)) {
         const parsed = parseTaskFile(content);
+        const relPath = filePath.replace(WORKSPACE_ROOT, "");
+        await client.mutation("mc:cleanupTasksByFile", {
+          filePath: relPath,
+          keepTaskId: parsed.taskId,
+        });
         await client.mutation("mc:upsertTask", {
           ...parsed,
-          filePath: filePath.replace(WORKSPACE_ROOT, ""),
+          filePath: relPath,
           updatedAt: stats.mtimeMs,
         });
       } else if (filePath.includes(`${path.sep}status${path.sep}`)) {
         const parsed = parseStatusFile(content);
+        const relPath = filePath.replace(WORKSPACE_ROOT, "");
+        const keepTaskIds = parsed.map((status) => status.taskId);
+        await client.mutation("mc:cleanupStatusByFile", {
+          filePath: relPath,
+          keepTaskIds,
+        });
         for (const status of parsed) {
           await client.mutation("mc:upsertStatus", {
             ...status,
-            filePath: filePath.replace(WORKSPACE_ROOT, ""),
+            filePath: relPath,
             updatedAt: stats.mtimeMs,
           });
         }
