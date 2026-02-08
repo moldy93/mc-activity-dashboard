@@ -142,6 +142,28 @@ function WeeklyCalendar() {
         : "skip"
     ) ?? [];
 
+  const days = useMemo(() => {
+    if (!range) return [] as Date[];
+    return Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(range.monday);
+      day.setDate(range.monday.getDate() + index);
+      return day;
+    });
+  }, [range]);
+
+  const tasksByDay = useMemo(() => {
+    const map = new Map<string, typeof tasks>();
+    tasks.forEach((task) => {
+      const key = new Date(task.nextRunAt).toDateString();
+      const list = map.get(key) || [];
+      list.push(task);
+      map.set(key, list);
+    });
+    return map;
+  }, [tasks]);
+
+  const weekdayFormatter = new Intl.DateTimeFormat("de-DE", { weekday: "short" });
+
   return (
     <div id="schedule" className="py-4">
       <div className="flex items-start justify-between gap-4">
@@ -182,36 +204,42 @@ function WeeklyCalendar() {
             : "Loading…"}
         </span>
       </div>
-      <div className="grid grid-cols-1 gap-3">
-        {tasks.length === 0 && (
-          <p className="text-sm text-slate-400">No tasks scheduled this week.</p>
-        )}
-        {tasks.map((task) => (
-          <div
-            key={task._id}
-            className="border-b border-slate-800 py-3"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-slate-100">
-                  {task.title}
-                </h3>
-                <ProjectBadge value={task.title} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+        {days.map((day) => {
+          const key = day.toDateString();
+          const entries = tasksByDay.get(key) || [];
+          return (
+            <div key={key} className="flex flex-col gap-2">
+              <div className="text-xs uppercase tracking-wide text-slate-500">
+                {weekdayFormatter.format(day)} {dateFormatter.format(day)}
               </div>
-              <span className="text-xs text-slate-500">
-                {dateTimeFormatter.format(new Date(task.nextRunAt))}
-              </span>
+              {entries.length === 0 && (
+                <div className="text-xs text-slate-600">—</div>
+              )}
+              {entries.map((task) => (
+                <div
+                  key={task._id}
+                  className="rounded-md border border-slate-800 bg-slate-950/60 p-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-100">
+                      {task.title}
+                    </span>
+                    <ProjectBadge value={task.title} />
+                  </div>
+                  <div className="mt-1 text-[10px] text-slate-500">
+                    {dateTimeFormatter.format(new Date(task.nextRunAt))}
+                  </div>
+                  {task.description && (
+                    <p className="mt-1 text-[11px] text-slate-300 line-clamp-3">
+                      {task.description}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-            {task.description && (
-              <p className="text-sm text-slate-300 mt-2 whitespace-pre-line">
-                {task.description}
-              </p>
-            )}
-            <div className="mt-3 text-xs text-slate-500">
-              {task.scheduleType.toUpperCase()}: {task.schedule}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
