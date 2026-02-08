@@ -63,9 +63,6 @@ function ActivityFeed() {
   const visible = activities.slice(0, 10);
   return (
     <div id="activity" className="py-4">
-      <div className="flex items-start justify-between gap-4">
-        <Pill label={`${visible.length} of ${activities.length}`} />
-      </div>
       <div className="mt-4">
         {activities.length === 0 && (
           <p className="text-sm text-slate-400">No activity yet.</p>
