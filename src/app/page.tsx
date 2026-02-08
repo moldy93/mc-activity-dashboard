@@ -200,7 +200,7 @@ function WeeklyCalendar() {
           );
         })}
       </div>
-      <div className="mt-4 flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2 mt-auto">
         <button
           className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
           onClick={() => {
