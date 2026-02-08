@@ -297,13 +297,37 @@ function formatLogLine(line: string) {
   if (trimmed.startsWith("{")) {
     try {
       const parsed = JSON.parse(trimmed);
-      const time = parsed.time || parsed.ts || parsed.timestamp;
-      const level = (parsed.level || parsed.sev || parsed.severity || "info").toString();
-      const msg = parsed.msg || parsed.message || parsed.event || parsed.data || "";
+      const time = parsed.time || parsed.ts || parsed.timestamp || parsed._meta?.date;
+      const level = (
+        parsed.level ||
+        parsed.sev ||
+        parsed.severity ||
+        parsed._meta?.logLevelName ||
+        "info"
+      ).toString();
+      const msg =
+        parsed.msg ||
+        parsed.message ||
+        parsed.event ||
+        parsed.data ||
+        parsed["2"] ||
+        "";
+
+      let subsystem = parsed.subsystem || parsed.source || parsed._meta?.name || parsed["0"];
+      if (typeof subsystem === "string" && subsystem.startsWith("{")) {
+        try {
+          const parsedSub = JSON.parse(subsystem);
+          subsystem = parsedSub.subsystem || parsedSub.source || subsystem;
+        } catch {
+          // ignore
+        }
+      }
+
       if (!msg) return [{ text: line, className: "text-slate-100" }];
       return [
         time ? { text: `[${time}]`, className: "text-sky-200" } : null,
         { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
+        subsystem ? { text: `${subsystem}`.padEnd(12, " "), className: "text-purple-200" } : null,
         { text: msg.toString(), className: "text-slate-100" },
       ].filter(Boolean) as { text: string; className: string }[];
     } catch {
