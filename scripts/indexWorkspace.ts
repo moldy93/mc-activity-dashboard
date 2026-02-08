@@ -134,8 +134,9 @@ function parseStatusFile(content: string) {
   const titleMatch = content.match(/^#\s*Status:\s*(.*)$/m);
   const headerValue = header ? header[1].trim() : undefined;
   const titleValue = titleMatch ? titleMatch[1].trim() : undefined;
-  const taskId = extractProjectId(headerValue) || extractProjectId(titleValue) || headerValue || titleValue || "unknown";
-  return [parseStatusSection(content, taskId)];
+  const projectId = extractProjectId(headerValue) || extractProjectId(titleValue);
+  if (!projectId) return [];
+  return [parseStatusSection(content, projectId)];
 }
 
 function parseAgentFile(content: string) {
@@ -215,12 +216,15 @@ async function main() {
           keepTaskIds,
         });
         for (const status of parsed) {
-          statusEntries.push({
-            taskId: status.taskId,
-            inProgress: status.inProgress,
-            updatedAt: stats.mtimeMs,
-            filePath: relPath,
-          });
+          const projectId = extractProjectId(status.taskId);
+          if (projectId && taskTitleById.has(status.taskId)) {
+            statusEntries.push({
+              taskId: status.taskId,
+              inProgress: status.inProgress,
+              updatedAt: stats.mtimeMs,
+              filePath: relPath,
+            });
+          }
         }
       } else if (filePath.endsWith(`${path.sep}board.md`)) {
         const columns = parseBoardFile(content);
