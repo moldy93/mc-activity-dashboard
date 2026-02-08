@@ -231,7 +231,7 @@ export default function RecentLogs() {
   };
 
   return (
-    <div id="logs" className="py-4 h-full flex flex-col">
+    <div id="logs" className="py-4 h-[320px] flex flex-col">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
         {["ERROR", "WARN", "INFO", "DEBUG"].map((level) => (
           <button
