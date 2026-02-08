@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -290,6 +290,72 @@ function MissionControlOverview() {
   );
 }
 
+function RecentLogs() {
+  const [lines, setLines] = useState<string[]>([]);
+  const [file, setFile] = useState("pm-status.md");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch(`/api/logs?file=${file}&limit=80`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active) {
+          setLines(data.lines || []);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 4000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [file]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.scrollTop = containerRef.current.scrollHeight;
+  }, [lines]);
+
+  return (
+    <div id="logs" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <SectionHeader title="Recent Logs" subtitle="Latest lines from Mission Control logs." />
+        <div className="flex items-center gap-2">
+          <select
+            value={file}
+            onChange={(e) => setFile(e.target.value)}
+            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200"
+          >
+            <option value="pm-status.md">pm-status.md</option>
+            <option value="pm-status.log">pm-status.log</option>
+            <option value="pm-status-5m.log">pm-status-5m.log</option>
+          </select>
+        </div>
+      </div>
+      <div
+        ref={containerRef}
+        className="mt-3 max-h-64 overflow-y-auto rounded-md border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-slate-200"
+      >
+        {lines.length === 0 && <div className="text-slate-500">No log output.</div>}
+        {lines.map((line, idx) => (
+          <div key={`${idx}-${line}`} className="whitespace-pre-wrap">
+            {line}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GlobalSearch() {
   const [term, setTerm] = useState("");
   const results = useQuery(api.search.global, { term, limit: 10 });
@@ -387,6 +453,12 @@ export default function Home() {
               Mission Control
             </a>
             <a
+              href="#logs"
+              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Logs
+            </a>
+            <a
               href="#search"
               className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
             >
@@ -403,6 +475,10 @@ export default function Home() {
 
       <div className="mt-6">
         <MissionControlOverview />
+      </div>
+
+      <div className="mt-6">
+        <RecentLogs />
       </div>
 
       <div className="mt-6">
