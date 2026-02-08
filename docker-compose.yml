@@ -8,6 +8,7 @@ services:
       - CONVEX_ADMIN_KEY=${CONVEX_ADMIN_KEY}
       - OPENCLAW_GATEWAY_WS=ws://host.docker.internal:18789
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - WS_NO_BUFFERUTIL=1
       - WORKSPACE_ROOT=/workspace
       - LIBC=glibc
       - CSS_TRANSFORMER_WASM=1
