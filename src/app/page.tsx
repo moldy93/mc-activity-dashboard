@@ -497,9 +497,6 @@ export default function Home() {
       <div className="pt-6">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div>
-            <ActivityFeed />
-          </div>
-          <div>
             <WeeklyCalendar />
           </div>
         </div>
