@@ -59,6 +59,7 @@ const parseLogLine = (line: string): LogEntry => {
         parsed.data ||
         parsed["2"] ||
         parsed["1"] ||
+        parsed["0"] ||
         "";
 
       let message = "";
