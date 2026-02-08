@@ -116,7 +116,16 @@ function parseStatusFile(content: string) {
       .map((section) => {
         const projectId = extractProjectId(section.header);
         if (!projectId) return null;
-        return parseStatusSection(section.body, projectId);
+        const parsed = parseStatusSection(section.body, projectId);
+        const hasAnyField = Boolean(
+          parsed.done ||
+            parsed.inProgress ||
+            parsed.next ||
+            parsed.eta ||
+            parsed.needFromYou ||
+            parsed.risks
+        );
+        return hasAnyField ? parsed : null;
       })
       .filter(Boolean) as ReturnType<typeof parseStatusSection>[];
   }
