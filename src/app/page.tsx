@@ -193,13 +193,6 @@ function WeeklyCalendar() {
         >
           Next
         </button>
-        <span className="text-sm text-slate-400 ml-2" suppressHydrationWarning>
-          {range
-            ? `${dateFormatter.format(range.monday)} – ${dateFormatter.format(
-                range.sunday
-              )}`
-            : "Loading…"}
-        </span>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         {days.map((day) => {
