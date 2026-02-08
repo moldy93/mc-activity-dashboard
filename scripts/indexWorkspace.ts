@@ -169,7 +169,7 @@ async function main() {
   });
 
   const taskTitleById = new Map<string, string>();
-  const statusEntries: Array<{ taskId: string; inProgress?: string; updatedAt: number }> = [];
+  const statusEntries: Array<{ taskId: string; inProgress?: string; updatedAt: number; filePath: string } > = [];
 
   for (const filePath of files) {
     const stats = fs.statSync(filePath);
@@ -215,15 +215,11 @@ async function main() {
           keepTaskIds,
         });
         for (const status of parsed) {
-          await client.mutation("mc:upsertStatus", {
-            ...status,
-            filePath: relPath,
-            updatedAt: stats.mtimeMs,
-          });
           statusEntries.push({
             taskId: status.taskId,
             inProgress: status.inProgress,
             updatedAt: stats.mtimeMs,
+            filePath: relPath,
           });
         }
       } else if (filePath.endsWith(`${path.sep}board.md`)) {
@@ -239,6 +235,23 @@ async function main() {
   }
 
   if (statusEntries.length > 0) {
+    const latestByTask = new Map<string, { inProgress?: string; updatedAt: number; filePath: string }>();
+    for (const entry of statusEntries) {
+      const existing = latestByTask.get(entry.taskId);
+      if (!existing || entry.updatedAt >= existing.updatedAt) {
+        latestByTask.set(entry.taskId, entry);
+      }
+    }
+
+    for (const [taskId, entry] of latestByTask.entries()) {
+      await client.mutation("mc:upsertStatus", {
+        taskId,
+        inProgress: entry.inProgress,
+        filePath: entry.filePath,
+        updatedAt: entry.updatedAt,
+      });
+    }
+
     const columns = {
       Inbox: new Set<string>(),
       Planning: new Set<string>(),
@@ -247,9 +260,9 @@ async function main() {
       Done: new Set<string>(),
     };
 
-    for (const entry of statusEntries) {
-      const title = taskTitleById.get(entry.taskId);
-      const label = title ? `${entry.taskId} — ${title}` : entry.taskId;
+    for (const [taskId, entry] of latestByTask.entries()) {
+      const title = taskTitleById.get(taskId);
+      const label = title ? `${taskId} — ${title}` : taskId;
       const statusText = (entry.inProgress || "").toLowerCase();
       if (statusText.includes("done") || statusText.includes("complete")) {
         columns.Done.add(label);
