@@ -88,21 +88,36 @@ function extractProjectId(value?: string) {
   return match ? match[0].toLowerCase() : undefined;
 }
 
+function parseStatusSection(section: string, fallbackId: string) {
+  return {
+    taskId: extractProjectId(fallbackId) || fallbackId || "unknown",
+    done: parseSingleLine(section, "Done"),
+    inProgress: parseSingleLine(section, "In Progress"),
+    next: parseSingleLine(section, "Next"),
+    eta: parseSingleLine(section, "ETA"),
+    needFromYou: parseSingleLine(section, "Need from you"),
+    risks: parseSingleLine(section, "Risks/Blocker|Risiko"),
+  };
+}
+
 function parseStatusFile(content: string) {
+  const sections = content.split(/\n##\s+/).map((block, index) => {
+    if (index === 0) return null;
+    const [headerLine, ...rest] = block.split("\n");
+    const sectionBody = rest.join("\n");
+    return { header: headerLine.trim(), body: sectionBody };
+  }).filter(Boolean) as { header: string; body: string }[];
+
+  if (sections.length > 0) {
+    return sections.map((section) => parseStatusSection(section.body, section.header));
+  }
+
   const header = content.match(/^\[STATUS\]\s*(.*)$/m);
   const titleMatch = content.match(/^#\s*Status:\s*(.*)$/m);
   const headerValue = header ? header[1].trim() : undefined;
   const titleValue = titleMatch ? titleMatch[1].trim() : undefined;
   const taskId = extractProjectId(headerValue) || extractProjectId(titleValue) || headerValue || titleValue || "unknown";
-  return {
-    taskId,
-    done: parseSingleLine(content, "Done"),
-    inProgress: parseSingleLine(content, "In Progress"),
-    next: parseSingleLine(content, "Next"),
-    eta: parseSingleLine(content, "ETA"),
-    needFromYou: parseSingleLine(content, "Need from you"),
-    risks: parseSingleLine(content, "Risks/Blocker"),
-  };
+  return [parseStatusSection(content, taskId)];
 }
 
 function parseAgentFile(content: string) {
@@ -166,11 +181,13 @@ async function main() {
         });
       } else if (filePath.includes(`${path.sep}status${path.sep}`)) {
         const parsed = parseStatusFile(content);
-        await client.mutation("mc:upsertStatus", {
-          ...parsed,
-          filePath: filePath.replace(WORKSPACE_ROOT, ""),
-          updatedAt: stats.mtimeMs,
-        });
+        for (const status of parsed) {
+          await client.mutation("mc:upsertStatus", {
+            ...status,
+            filePath: filePath.replace(WORKSPACE_ROOT, ""),
+            updatedAt: stats.mtimeMs,
+          });
+        }
       } else if (filePath.endsWith(`${path.sep}board.md`)) {
         const columns = parseBoardFile(content);
         for (const column of columns) {
