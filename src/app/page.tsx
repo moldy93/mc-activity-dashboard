@@ -388,6 +388,9 @@ function levelColor(level: string) {
   return "text-slate-300";
 }
 
+const LOG_POLL_MS = 4000;
+const LOG_MAX_LINES = 400;
+
 function RecentLogs() {
   const [lines, setLines] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -402,14 +405,14 @@ function RecentLogs() {
         const res = await fetch(`/api/openclaw/logs${query}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (active) {
-          if (data.lastTimeMs) {
-            sinceRef.current = data.lastTimeMs + 1;
-          }
-          const nextLines = data.lines || [];
-          if (nextLines.length > 0) {
-            setLines((prev) => [...prev, ...nextLines].slice(-400));
-          }
+        if (!active) return;
+
+        if (data.lastTimeMs) {
+          sinceRef.current = data.lastTimeMs + 1;
+        }
+        const nextLines = data.lines || [];
+        if (nextLines.length > 0) {
+          setLines((prev) => [...prev, ...nextLines].slice(-LOG_MAX_LINES));
         }
       } catch {
         // ignore
@@ -417,7 +420,7 @@ function RecentLogs() {
     };
 
     fetchLogs();
-    const interval = setInterval(fetchLogs, 4000);
+    const interval = setInterval(fetchLogs, LOG_POLL_MS);
 
     return () => {
       active = false;

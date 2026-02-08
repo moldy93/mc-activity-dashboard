@@ -89,6 +89,8 @@ const signDevicePayload = (privateKeyPem, payload) => {
 const publicKeyRawBase64UrlFromPem = (publicKeyPem) => base64UrlEncode(derivePublicKeyRaw(publicKeyPem));
 
 const timeoutMs = 10000;
+const logLimit = 200;
+const maxBytes = 200000;
 let settled = false;
 
 const sinceMs = Number(process.argv[2] || "0");
@@ -173,7 +175,7 @@ const sendConnect = (challenge) => {
 
 const requestLogs = () => {
   const id = crypto.randomUUID();
-  const params = { cursor: 0, limit: 200, maxBytes: 200000 };
+  const params = { cursor: 0, limit: logLimit, maxBytes };
   if (Number.isFinite(sinceMs) && sinceMs > 0) {
     params.sinceMs = sinceMs;
   }
