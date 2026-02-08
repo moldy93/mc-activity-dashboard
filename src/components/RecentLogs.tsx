@@ -68,6 +68,10 @@ const parseLogLine = (line: string): LogEntry => {
         message = JSON.stringify(rawMsg);
       }
 
+      if (!message && typeof parsed["1"] === "string") {
+        message = parsed["1"];
+      }
+
       let subsystem = parsed.subsystem || parsed.source || parsed._meta?.name || parsed["0"];
       let subsystemName: string | undefined;
       if (typeof subsystem === "string" && subsystem.startsWith("{")) {
@@ -160,7 +164,7 @@ export default function RecentLogs({
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cursorRef = useRef<number | null>(null);
-  const [levelFilter, setLevelFilter] = useState<string[]>(["ERROR", "WARN", "INFO"]);
+  const [levelFilter, setLevelFilter] = useState<string[]>(["ERROR", "WARN", "INFO", "DEBUG"]);
   const [subsystemFilter, setSubsystemFilter] = useState("");
 
   useEffect(() => {
@@ -208,7 +212,7 @@ export default function RecentLogs({
     [entries]
   );
 
-  const activeLevels = levelFilter.length ? levelFilter : ["ERROR", "WARN", "INFO"];
+  const activeLevels = levelFilter.length ? levelFilter : ["ERROR", "WARN", "INFO", "DEBUG"];
   const filteredEntries = useMemo(() => {
     const subsystemQuery = subsystemFilter.trim().toLowerCase();
     return entries.filter((entry) => {
@@ -239,7 +243,7 @@ export default function RecentLogs({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-        {["ERROR", "WARN", "INFO"].map((level) => (
+        {["ERROR", "WARN", "INFO", "DEBUG"].map((level) => (
           <button
             key={level}
             className={`rounded-full border px-3 py-1 ${
