@@ -292,7 +292,6 @@ function MissionControlOverview() {
 
 function RecentLogs() {
   const [lines, setLines] = useState<string[]>([]);
-  const [file, setFile] = useState("pm-status.md");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -300,7 +299,7 @@ function RecentLogs() {
 
     const fetchLogs = async () => {
       try {
-        const res = await fetch(`/api/logs?file=${file}&limit=80`);
+        const res = await fetch(`/api/openclaw/logs`);
         if (!res.ok) return;
         const data = await res.json();
         if (active) {
@@ -318,7 +317,7 @@ function RecentLogs() {
       active = false;
       clearInterval(interval);
     };
-  }, [file]);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -327,20 +326,7 @@ function RecentLogs() {
 
   return (
     <div id="logs" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <SectionHeader title="Recent Logs" subtitle="Latest lines from Mission Control logs." />
-        <div className="flex items-center gap-2">
-          <select
-            value={file}
-            onChange={(e) => setFile(e.target.value)}
-            className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200"
-          >
-            <option value="pm-status.md">pm-status.md</option>
-            <option value="pm-status.log">pm-status.log</option>
-            <option value="pm-status-5m.log">pm-status-5m.log</option>
-          </select>
-        </div>
-      </div>
+      <SectionHeader title="Recent Logs" subtitle="OpenClaw gateway log tail." />
       <div
         ref={containerRef}
         className="mt-3 max-h-64 overflow-y-auto rounded-md border border-slate-800 bg-slate-950 p-3 font-mono text-xs text-slate-200"
@@ -478,11 +464,11 @@ export default function Home() {
       </div>
 
       <div className="mt-6">
-        <RecentLogs />
+        <GlobalSearch />
       </div>
 
       <div className="mt-6">
-        <GlobalSearch />
+        <RecentLogs />
       </div>
     </main>
   );
