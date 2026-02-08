@@ -308,20 +308,19 @@ function MissionControlOverview() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-slate-200">Pipeline</h3>
-          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {data.board.map((col) => (
-              <div key={col._id} className="border-b border-slate-800 py-3">
+              <div key={col._id} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wide text-slate-400">{col.column}</span>
+                  <span className="text-[11px] uppercase tracking-wide text-slate-400">{col.column}</span>
                   <span className="text-xs text-slate-500">{col.items.length}</span>
                 </div>
-                <ul className="mt-2 space-y-1 text-xs text-slate-300">
-                  {col.items.length === 0 && <li className="text-slate-500">—</li>}
+                <ul className="mt-2 space-y-2 text-xs text-slate-300">
+                  {col.items.length === 0 && <li className="text-slate-600">—</li>}
                   {col.items.map((item) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <span>{item}</span>
+                    <li key={item} className="flex items-start gap-2">
                       <ProjectBadge value={item} />
+                      <span className="leading-snug">{item}</span>
                     </li>
                   ))}
                 </ul>
