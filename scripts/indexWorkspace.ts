@@ -197,13 +197,18 @@ async function main() {
       } else if (filePath.includes(`${path.sep}tasks${path.sep}`)) {
         const parsed = parseTaskFile(content);
         const relPath = filePath.replace(WORKSPACE_ROOT, "");
-        taskTitleById.set(parsed.taskId, parsed.title);
+        const projectIdFromPath = extractProjectId(relPath);
+        const taskId = projectIdFromPath || parsed.taskId;
+        const title = parsed.title.replace(/^—\s*/, "");
+        taskTitleById.set(taskId, title);
         await client.mutation("mc:cleanupTasksByFile", {
           filePath: relPath,
-          keepTaskId: parsed.taskId,
+          keepTaskId: taskId,
         });
         await client.mutation("mc:upsertTask", {
           ...parsed,
+          taskId,
+          title,
           filePath: relPath,
           updatedAt: stats.mtimeMs,
         });
