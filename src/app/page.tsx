@@ -293,7 +293,11 @@ function MissionControlOverview() {
 
 function GlobalSearch() {
   const [term, setTerm] = useState("");
-  const results = useQuery(api.search.global, { term, limit: 10 });
+  const trimmed = term.trim();
+  const results = useQuery(
+    api.search.global,
+    trimmed ? { term: trimmed, limit: 10 } : "skip"
+  );
 
   const renderSection = (
     label: string,
@@ -337,10 +341,10 @@ function GlobalSearch() {
         placeholder="Search anything..."
         className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
       />
-      {!results && (
+      {!trimmed && (
         <p className="text-xs text-slate-500 mt-2">Type to search.</p>
       )}
-      {results && (
+      {trimmed && results && (
         <div className="mt-4">
           {renderSection("Memories", results.memories)}
           {renderSection("Documents", results.documents)}
