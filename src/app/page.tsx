@@ -163,34 +163,6 @@ function WeeklyCalendar() {
 
   return (
     <div id="schedule" className="py-4">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button
-          className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          onClick={() => {
-            const prev = new Date(anchor);
-            prev.setDate(anchor.getDate() - 7);
-            setAnchor(prev);
-          }}
-        >
-          Prev
-        </button>
-        <button
-          className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          onClick={() => setAnchor(new Date())}
-        >
-          Today
-        </button>
-        <button
-          className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          onClick={() => {
-            const next = new Date(anchor);
-            next.setDate(anchor.getDate() + 7);
-            setAnchor(next);
-          }}
-        >
-          Next
-        </button>
-      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         {days.map((day) => {
           const key = day.toDateString();
@@ -227,6 +199,34 @@ function WeeklyCalendar() {
             </div>
           );
         })}
+      </div>
+      <div className="mt-4 flex items-center justify-center gap-2">
+        <button
+          className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+          onClick={() => {
+            const prev = new Date(anchor);
+            prev.setDate(anchor.getDate() - 7);
+            setAnchor(prev);
+          }}
+        >
+          Prev
+        </button>
+        <button
+          className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+          onClick={() => setAnchor(new Date())}
+        >
+          Today
+        </button>
+        <button
+          className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+          onClick={() => {
+            const next = new Date(anchor);
+            next.setDate(anchor.getDate() + 7);
+            setAnchor(next);
+          }}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
