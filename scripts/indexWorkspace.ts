@@ -82,10 +82,20 @@ function parseTaskFile(content: string) {
   };
 }
 
+function extractProjectId(value?: string) {
+  if (!value) return undefined;
+  const match = value.match(/[a-z]+-\d{3}(?:-\d{2})?/i);
+  return match ? match[0].toLowerCase() : undefined;
+}
+
 function parseStatusFile(content: string) {
   const header = content.match(/^\[STATUS\]\s*(.*)$/m);
+  const titleMatch = content.match(/^#\s*Status:\s*(.*)$/m);
+  const headerValue = header ? header[1].trim() : undefined;
+  const titleValue = titleMatch ? titleMatch[1].trim() : undefined;
+  const taskId = extractProjectId(headerValue) || extractProjectId(titleValue) || headerValue || titleValue || "unknown";
   return {
-    taskId: header ? header[1].trim() : "unknown",
+    taskId,
     done: parseSingleLine(content, "Done"),
     inProgress: parseSingleLine(content, "In Progress"),
     next: parseSingleLine(content, "Next"),
