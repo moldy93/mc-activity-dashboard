@@ -318,9 +318,12 @@ function MissionControlOverview() {
                 <ul className="mt-2 space-y-2 text-xs text-slate-300">
                   {col.items.length === 0 && <li className="text-slate-600">—</li>}
                   {col.items.map((item) => (
-                    <li key={item} className="flex items-start gap-2">
-                      <ProjectBadge value={item} />
-                      <span className="leading-snug">{item}</span>
+                    <li key={item} className="rounded-md border border-slate-800 bg-slate-900/40 p-2">
+                      <div className="flex items-center gap-2">
+                        <ProjectBadge value={item} />
+                      </div>
+                      <div className="mt-1 text-xs text-slate-200">{item.replace(/^\S+\s+—\s+/, "")}</div>
+                      <div className="mt-1 text-[10px] text-slate-500">Updated</div>
                     </li>
                   ))}
                 </ul>
