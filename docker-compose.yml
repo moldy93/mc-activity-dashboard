@@ -6,7 +6,7 @@ services:
     environment:
       - NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL}
       - CONVEX_ADMIN_KEY=${CONVEX_ADMIN_KEY}
-      - OPENCLAW_GATEWAY_WS=${OPENCLAW_GATEWAY_WS}
+      - OPENCLAW_GATEWAY_WS=ws://host.docker.internal:18789
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - WORKSPACE_ROOT=/workspace
       - LIBC=glibc
