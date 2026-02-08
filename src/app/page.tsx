@@ -501,6 +501,12 @@ export default function Home() {
           </div>
           <div className="flex flex-wrap gap-2">
             <a
+              href="#mission-control"
+              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Mission Control
+            </a>
+            <a
               href="#activity"
               className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
             >
@@ -511,12 +517,6 @@ export default function Home() {
               className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
             >
               Schedule
-            </a>
-            <a
-              href="#mission-control"
-              className="rounded-md border border-slate-700 px-3 py-1 text-sm text-slate-200 hover:bg-slate-800"
-            >
-              Mission Control
             </a>
             <a
               href="#logs"
@@ -534,13 +534,13 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ActivityFeed />
-        <WeeklyCalendar />
-      </div>
-
       <div className="mt-6">
         <MissionControlOverview />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <ActivityFeed />
+        <WeeklyCalendar />
       </div>
 
       <div className="mt-6">
