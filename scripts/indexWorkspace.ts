@@ -18,6 +18,25 @@ const EXCLUDE_DIRS = new Set([
 
 const MAX_BYTES = 200_000;
 
+const INDEX_STATE_PATH = path.join(WORKSPACE_ROOT, "memory", "indexer-state.json");
+
+function loadIndexState() {
+  try {
+    const raw = fs.readFileSync(INDEX_STATE_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") return parsed as Record<string, number>;
+  } catch {
+    // ignore
+  }
+  return {} as Record<string, number>;
+}
+
+function saveIndexState(state: Record<string, number>) {
+  const dir = path.dirname(INDEX_STATE_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(INDEX_STATE_PATH, JSON.stringify(state, null, 2));
+}
+
 function walk(dir: string, files: string[] = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -167,6 +186,9 @@ async function main() {
     return [".md", ".txt", ".log"].some((ext) => f.endsWith(ext));
   });
 
+  const indexState = loadIndexState();
+  const nextIndexState: Record<string, number> = { ...indexState };
+
   const taskTitleById = new Map<string, string>();
   let boardFromFile = false;
   const statusEntries: Array<{
@@ -184,6 +206,11 @@ async function main() {
   for (const filePath of files) {
     const stats = fs.statSync(filePath);
     if (stats.size > MAX_BYTES) continue;
+    const relPath = filePath.replace(WORKSPACE_ROOT, "");
+    if (indexState[relPath] && indexState[relPath] === stats.mtimeMs) {
+      continue;
+    }
+    nextIndexState[relPath] = stats.mtimeMs;
     const content = fs.readFileSync(filePath, "utf8");
     const title = path.basename(filePath);
     const type = classify(filePath);
@@ -191,7 +218,7 @@ async function main() {
     await client.mutation("ingest:upsertDocument", {
       type,
       title,
-      path: filePath.replace(WORKSPACE_ROOT, ""),
+      path: relPath,
       content,
       updatedAt: stats.mtimeMs,
     });
@@ -205,7 +232,6 @@ async function main() {
         });
       } else if (filePath.includes(`${path.sep}tasks${path.sep}`)) {
         const parsed = parseTaskFile(content);
-        const relPath = filePath.replace(WORKSPACE_ROOT, "");
         const projectIdFromPath = extractProjectId(relPath);
         const taskId = projectIdFromPath || parsed.taskId;
         const title = parsed.title.replace(/^—\s*/, "");
@@ -222,7 +248,6 @@ async function main() {
           updatedAt: stats.mtimeMs,
         });
       } else if (filePath.includes(`${path.sep}status${path.sep}`)) {
-        const relPath = filePath.replace(WORKSPACE_ROOT, "");
         const parsed = parseStatusFile(content, relPath);
         const keepTaskIds = parsed.map((status) => status.taskId);
         await client.mutation("mc:cleanupStatusByFile", {
@@ -339,6 +364,8 @@ async function main() {
       }
     }
   }
+
+  saveIndexState(nextIndexState);
 
   try {
     await client.mutation("activity:log", {
