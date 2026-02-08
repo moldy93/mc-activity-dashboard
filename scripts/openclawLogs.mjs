@@ -186,7 +186,7 @@ const timeout = setTimeout(() => {
 }, timeoutMs);
 
 ws.on("open", () => {
-  sendConnect();
+  // wait for connect.challenge event
 });
 
 ws.on("message", (raw) => {
