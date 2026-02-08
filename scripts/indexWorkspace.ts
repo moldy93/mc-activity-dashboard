@@ -168,6 +168,9 @@ async function main() {
     return [".md", ".txt", ".log"].some((ext) => f.endsWith(ext));
   });
 
+  const taskTitleById = new Map<string, string>();
+  const statusEntries: Array<{ taskId: string; inProgress?: string; updatedAt: number }> = [];
+
   for (const filePath of files) {
     const stats = fs.statSync(filePath);
     if (stats.size > MAX_BYTES) continue;
@@ -193,6 +196,7 @@ async function main() {
       } else if (filePath.includes(`${path.sep}tasks${path.sep}`)) {
         const parsed = parseTaskFile(content);
         const relPath = filePath.replace(WORKSPACE_ROOT, "");
+        taskTitleById.set(parsed.taskId, parsed.title);
         await client.mutation("mc:cleanupTasksByFile", {
           filePath: relPath,
           keepTaskId: parsed.taskId,
@@ -216,6 +220,11 @@ async function main() {
             filePath: relPath,
             updatedAt: stats.mtimeMs,
           });
+          statusEntries.push({
+            taskId: status.taskId,
+            inProgress: status.inProgress,
+            updatedAt: stats.mtimeMs,
+          });
         }
       } else if (filePath.endsWith(`${path.sep}board.md`)) {
         const columns = parseBoardFile(content);
@@ -226,6 +235,42 @@ async function main() {
           });
         }
       }
+    }
+  }
+
+  if (statusEntries.length > 0) {
+    const columns = {
+      Inbox: new Set<string>(),
+      Planning: new Set<string>(),
+      Development: new Set<string>(),
+      Review: new Set<string>(),
+      Done: new Set<string>(),
+    };
+
+    for (const entry of statusEntries) {
+      const title = taskTitleById.get(entry.taskId);
+      const label = title ? `${entry.taskId} — ${title}` : entry.taskId;
+      const statusText = (entry.inProgress || "").toLowerCase();
+      if (statusText.includes("done")) {
+        columns.Done.add(label);
+      } else if (statusText.includes("review")) {
+        columns.Review.add(label);
+      } else if (statusText.includes("develop") || statusText.includes("implement")) {
+        columns.Development.add(label);
+      } else if (statusText.includes("plan")) {
+        columns.Planning.add(label);
+      } else {
+        columns.Inbox.add(label);
+      }
+    }
+
+    const updatedAt = Date.now();
+    for (const [column, items] of Object.entries(columns)) {
+      await client.mutation("mc:upsertBoardColumn", {
+        column,
+        items: Array.from(items),
+        updatedAt,
+      });
     }
   }
 
