@@ -318,6 +318,17 @@ async function main() {
     }
   }
 
+  try {
+    await client.mutation("activity:log", {
+      title: "Workspace indexed",
+      detail: `Indexed ${files.length} files from ${WORKSPACE_ROOT}`,
+      kind: "ingest",
+      source: "indexer",
+    });
+  } catch (err) {
+    console.error("Failed to log activity", err);
+  }
+
   console.log(`Indexed ${files.length} files from ${WORKSPACE_ROOT}`);
 }
 
