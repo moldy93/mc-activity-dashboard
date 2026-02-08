@@ -290,8 +290,7 @@ function MissionControlOverview() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
-          <h3 className="text-sm font-semibold text-slate-200">Agents</h3>
-          <div className="mt-2 space-y-2">
+          <div className="mt-2">
             <div className="grid grid-cols-1 gap-3">
               {data.agents.map((agent) => (
                 <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
