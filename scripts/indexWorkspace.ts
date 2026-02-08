@@ -53,7 +53,8 @@ function parseListBlock(content: string, heading: string) {
 function parseSingleLine(content: string, label: string) {
   const regex = new RegExp(`^${label}:\s*(.*)$`, "mi");
   const match = content.match(regex);
-  return match ? match[1].trim() : undefined;
+  if (!match) return undefined;
+  return typeof match[1] === "string" ? match[1].trim() : undefined;
 }
 
 function parseTaskFile(content: string) {
@@ -96,7 +97,7 @@ function parseStatusSection(section: string, fallbackId: string) {
     next: parseSingleLine(section, "Next"),
     eta: parseSingleLine(section, "ETA"),
     needFromYou: parseSingleLine(section, "Need from you"),
-    risks: parseSingleLine(section, "Risks/Blocker|Risiko"),
+    risks: parseSingleLine(section, "Risks/Blocker") || parseSingleLine(section, "Risiko"),
   };
 }
 
