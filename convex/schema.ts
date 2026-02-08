@@ -97,4 +97,20 @@ export default defineSchema({
     items: v.array(v.string()),
     updatedAt: v.number(),
   }).index("by_column", ["column"]),
+
+  mcCountsDaily: defineTable({
+    date: v.string(),
+    counts: v.object({
+      documents: v.number(),
+      memories: v.number(),
+      taskNotes: v.number(),
+      activities: v.number(),
+      scheduledTasks: v.number(),
+      mcAgents: v.number(),
+      mcTasks: v.number(),
+      mcStatus: v.number(),
+      mcBoardColumns: v.number(),
+    }),
+    updatedAt: v.number(),
+  }).index("by_date", ["date"]),
 });

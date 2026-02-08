@@ -144,3 +144,71 @@ export const getOverview = query({
     return { agents, tasks, status, board };
   },
 });
+
+export const getCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    const [
+      documents,
+      memories,
+      taskNotes,
+      activities,
+      scheduledTasks,
+      mcAgents,
+      mcTasks,
+      mcStatus,
+      mcBoardColumns,
+    ] = await Promise.all([
+      ctx.db.query("documents").collect(),
+      ctx.db.query("memories").collect(),
+      ctx.db.query("taskNotes").collect(),
+      ctx.db.query("activities").collect(),
+      ctx.db.query("scheduledTasks").collect(),
+      ctx.db.query("mcAgents").collect(),
+      ctx.db.query("mcTasks").collect(),
+      ctx.db.query("mcStatus").collect(),
+      ctx.db.query("mcBoardColumns").collect(),
+    ]);
+
+    return {
+      documents: documents.length,
+      memories: memories.length,
+      taskNotes: taskNotes.length,
+      activities: activities.length,
+      scheduledTasks: scheduledTasks.length,
+      mcAgents: mcAgents.length,
+      mcTasks: mcTasks.length,
+      mcStatus: mcStatus.length,
+      mcBoardColumns: mcBoardColumns.length,
+    };
+  },
+});
+
+export const upsertCountsDaily = mutation({
+  args: {
+    date: v.string(),
+    counts: v.object({
+      documents: v.number(),
+      memories: v.number(),
+      taskNotes: v.number(),
+      activities: v.number(),
+      scheduledTasks: v.number(),
+      mcAgents: v.number(),
+      mcTasks: v.number(),
+      mcStatus: v.number(),
+      mcBoardColumns: v.number(),
+    }),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mcCountsDaily")
+      .withIndex("by_date", (q) => q.eq("date", args.date))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+      return existing._id;
+    }
+    return await ctx.db.insert("mcCountsDaily", args);
+  },
+});
