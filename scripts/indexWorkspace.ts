@@ -273,6 +273,16 @@ async function main() {
         const existingHasProgress = Boolean(existing.inProgress || existing.done);
         if (entryHasProgress && !existingHasProgress) {
           latestByTask.set(entry.taskId, entry);
+          continue;
+        }
+        if (entryHasProgress && existingHasProgress) {
+          const entryStatus = (entry.inProgress || entry.done || "").toLowerCase();
+          const existingStatus = (existing.inProgress || existing.done || "").toLowerCase();
+          const entryIsDone = entryStatus.includes("done") || entryStatus.includes("complete");
+          const existingIsDone = existingStatus.includes("done") || existingStatus.includes("complete");
+          if (entryIsDone && !existingIsDone) {
+            latestByTask.set(entry.taskId, entry);
+          }
         }
       }
     }
