@@ -300,6 +300,7 @@ function formatLogLine(line: string) {
       const time = parsed.time || parsed.ts || parsed.timestamp;
       const level = (parsed.level || parsed.sev || parsed.severity || "info").toString();
       const msg = parsed.msg || parsed.message || parsed.event || parsed.data || "";
+      if (!msg) return [{ text: line, className: "text-slate-100" }];
       return [
         time ? { text: `[${time}]`, className: "text-sky-200" } : null,
         { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
@@ -310,9 +311,19 @@ function formatLogLine(line: string) {
     }
   }
 
-  const match = trimmed.match(
-    /^(\d{4}-\d{2}-\d{2}[^\s]*)\s+(\w+)\s+(.*)$/
-  );
+  const bracketMatch = trimmed.match(/^(\w+)\s+\[([^\]]+)\]\s+(\w+)\s*(.*)$/);
+  if (bracketMatch) {
+    const [, firstLevel, time, level, msg] = bracketMatch;
+    const text = msg || trimmed;
+    return [
+      { text: firstLevel.toUpperCase().padEnd(5, " "), className: levelColor(firstLevel) },
+      { text: `[${time}]`, className: "text-sky-200" },
+      { text: level.toUpperCase().padEnd(5, " "), className: levelColor(level) },
+      { text, className: "text-slate-100" },
+    ];
+  }
+
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2}[^\s]*)\s+(\w+)\s+(.*)$/);
   if (match) {
     const [, time, level, msg] = match;
     return [
