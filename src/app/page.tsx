@@ -406,6 +406,30 @@ function MissionControlOverview() {
   );
 }
 
+function StickyHealthBar() {
+  const dailyCounts = useQuery(api.mc.listCountsDaily) ?? [];
+  const latest = dailyCounts[dailyCounts.length - 1];
+  if (!latest) return null;
+  const updated = new Date(latest.updatedAt).toLocaleTimeString("de-DE", {
+    timeZone: "Europe/Berlin",
+    hour12: false,
+  });
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-2 text-[11px] text-slate-400">
+        <div className="flex items-center gap-3">
+          <span className="uppercase tracking-[0.2em] text-slate-500">Health</span>
+          <span>Docs {latest.counts.documents}</span>
+          <span>Mem {latest.counts.memories}</span>
+          <span>Tasks {latest.counts.mcTasks}</span>
+          <span>Status {latest.counts.mcStatus}</span>
+        </div>
+        <span>Updated {updated}</span>
+      </div>
+    </div>
+  );
+}
+
 function GlobalSearch() {
   const [term, setTerm] = useState("");
   const trimmed = term.trim();
@@ -472,7 +496,8 @@ function GlobalSearch() {
 
 export default function Home() {
   return (
-    <main className="min-h-screen px-6 py-10">
+    <>
+      <main className="min-h-screen px-6 py-10">
       <header className="mb-8">
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
           Mission Control
@@ -539,5 +564,7 @@ export default function Home() {
         <RecentLogs />
       </div>
     </main>
+    <StickyHealthBar />
+    </>
   );
 }
