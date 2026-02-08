@@ -41,7 +41,7 @@ function classify(filePath: string) {
 }
 
 function parseListBlock(content: string, heading: string) {
-  const regex = new RegExp(`## ${heading}([\\s\\S]*?)(\\n## |$)`, "m");
+  const regex = new RegExp(`## ${heading}([\\s\\S]*?)(?=\\n## |$)`);
   const match = content.match(regex);
   if (!match) return [] as string[];
   return match[1]
