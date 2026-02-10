@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import RecentLogs from "../components/RecentLogs";
+import { marked } from "marked";
 
 const dateFormatter = new Intl.DateTimeFormat("de-DE", {
   timeZone: "Europe/Berlin",
@@ -190,12 +191,17 @@ function WeeklyCalendar() {
                     {dateTimeFormatter.format(new Date(task.nextRunAt))}
                   </div>
                   {task.description && (
-                    <p
-                      className="mt-1 text-[11px] text-slate-300 line-clamp-3 hidden"
-                      title={task.description}
-                    >
-                      {task.description}
-                    </p>
+                    <div className="relative group mt-1">
+                      <span className="text-[10px] text-slate-500">Details</span>
+                      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 rounded-md border border-slate-700 bg-slate-900/95 p-3 text-[11px] text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                        <div
+                          className="prose prose-invert prose-xs max-w-none"
+                          dangerouslySetInnerHTML={{
+                            __html: marked.parse(task.description || ""),
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
