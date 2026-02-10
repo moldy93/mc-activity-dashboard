@@ -19,6 +19,7 @@ const EXCLUDE_DIRS = new Set([
 const MAX_BYTES = 200_000;
 
 const INDEX_STATE_PATH = path.join(WORKSPACE_ROOT, "memory", "indexer-state.json");
+const CRON_SNAPSHOT_PATH = path.join(WORKSPACE_ROOT, "memory", "cron-jobs.json");
 
 function loadIndexState() {
   try {
@@ -35,6 +36,17 @@ function saveIndexState(state: Record<string, number>) {
   const dir = path.dirname(INDEX_STATE_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(INDEX_STATE_PATH, JSON.stringify(state, null, 2));
+}
+
+function loadCronSnapshot() {
+  try {
+    if (!fs.existsSync(CRON_SNAPSHOT_PATH)) return [] as any[];
+    const raw = fs.readFileSync(CRON_SNAPSHOT_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [] as any[];
+  }
 }
 
 function walk(dir: string, files: string[] = []) {
@@ -407,6 +419,30 @@ async function main() {
         });
       }
     }
+  }
+
+  const cronJobs = loadCronSnapshot();
+  for (const job of cronJobs) {
+    const title = job.name || job.id || "cron-job";
+    const scheduleType = job.schedule?.kind || "cron";
+    const schedule =
+      scheduleType === "cron"
+        ? job.schedule?.expr || ""
+        : scheduleType === "every"
+        ? String(job.schedule?.everyMs ?? "")
+        : String(job.schedule?.atMs ?? "");
+    const nextRunAt =
+      job.state?.nextRunAtMs ||
+      job.schedule?.atMs ||
+      job.schedule?.anchorMs ||
+      Date.now();
+    await client.mutation("tasks:upsert", {
+      title,
+      description: job.payload?.text || job.payload?.message || undefined,
+      scheduleType,
+      schedule,
+      nextRunAt,
+    });
   }
 
   saveIndexState(nextIndexState);
