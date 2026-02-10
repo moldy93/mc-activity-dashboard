@@ -190,7 +190,10 @@ function WeeklyCalendar() {
                     {dateTimeFormatter.format(new Date(task.nextRunAt))}
                   </div>
                   {task.description && (
-                    <p className="mt-1 text-[11px] text-slate-300 line-clamp-3">
+                    <p
+                      className="mt-1 text-[11px] text-slate-300 line-clamp-3 hidden"
+                      title={task.description}
+                    >
                       {task.description}
                     </p>
                   )}
