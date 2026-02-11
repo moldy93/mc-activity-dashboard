@@ -732,7 +732,7 @@ function CodexUsageFooter() {
     };
 
     load();
-    const interval = setInterval(load, 60000);
+    const interval = setInterval(load, 300000);
     return () => {
       mounted = false;
       clearInterval(interval);
