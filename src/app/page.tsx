@@ -492,6 +492,8 @@ function MissionControlOverview() {
                 const roleKey = normalizeRoleKey(agent.role);
                 const tasks = agentWorkload[roleKey] || [];
                 const details = agentDetails[roleKey];
+                const isTimestampMeta = (line: string) => /^\(\d{4}-\d{2}-\d{2}[^)]*\)$/.test(String(line || "").trim());
+                const filteredStatus = (details?.status || []).filter((line) => !isTimestampMeta(line));
                 const filteredNextSteps = (details?.nextSteps || []).filter((line) => {
                   const s = String(line || "").toLowerCase();
                   return !(s.includes("await new task") || s.includes("await new assignment") || s.includes("await new work"));
@@ -527,11 +529,11 @@ function MissionControlOverview() {
 
                     {details && (
                       <div className="mt-3 space-y-2 text-xs">
-                        {details.status.length > 0 && (
+                        {filteredStatus.length > 0 && (
                           <div>
                             <p className="text-[10px] uppercase tracking-wide text-slate-500">Now</p>
                             <ul className="mt-1 space-y-1 text-slate-300">
-                              {details.status.slice(0, 2).map((line, idx) => (
+                              {filteredStatus.slice(0, 2).map((line, idx) => (
                                 <li key={idx}>• {line}</li>
                               ))}
                             </ul>
