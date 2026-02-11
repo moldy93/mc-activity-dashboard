@@ -205,9 +205,7 @@ async function main() {
   if (!CONVEX_URL) {
     throw new Error("CONVEX_URL or NEXT_PUBLIC_CONVEX_URL is required");
   }
-  const client = new ConvexHttpClient(CONVEX_URL, {
-    adminKey: process.env.CONVEX_ADMIN_KEY,
-  });
+  const client = new ConvexHttpClient(CONVEX_URL);
 
   const files = walk(WORKSPACE_ROOT).filter((f) => {
     return [".md", ".txt", ".log"].some((ext) => f.endsWith(ext));

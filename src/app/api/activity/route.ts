@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../convex/_generated/api";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 
@@ -13,10 +14,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const client = new ConvexHttpClient(convexUrl, {
-    adminKey: process.env.CONVEX_ADMIN_KEY,
+    auth: process.env.CONVEX_ADMIN_KEY,
   });
 
-  const result = await client.mutation("activity:log", {
+  const result = await client.mutation(api.activity.log, {
     title: body.title ?? "Untitled",
     detail: body.detail,
     kind: body.kind,

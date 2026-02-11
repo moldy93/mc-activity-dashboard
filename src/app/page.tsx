@@ -133,25 +133,16 @@ function getWeekRange(anchor: Date) {
 }
 
 function WeeklyCalendar() {
-  const [anchor, setAnchor] = useState<Date | null>(null);
-  useEffect(() => {
-    setAnchor(new Date());
-  }, []);
+  const [anchor, setAnchor] = useState<Date>(new Date());
 
-  const range = useMemo(() => (anchor ? getWeekRange(anchor) : null), [anchor]);
+  const range = useMemo(() => getWeekRange(anchor), [anchor]);
   const tasks =
-    useQuery(
-      api.tasks.listWeek,
-      range
-        ? {
-            weekStart: range.monday.getTime(),
-            weekEnd: range.sunday.getTime(),
-          }
-        : "skip"
-    ) ?? [];
+    useQuery(api.tasks.listWeek, {
+      weekStart: range.monday.getTime(),
+      weekEnd: range.sunday.getTime(),
+    }) ?? [];
 
   const days = useMemo(() => {
-    if (!range) return [] as Date[];
     return Array.from({ length: 7 }, (_, index) => {
       const day = new Date(range.monday);
       day.setDate(range.monday.getDate() + index);

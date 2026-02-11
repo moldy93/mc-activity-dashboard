@@ -1,47 +1,36 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { spawn } from "child_process";
-import path from "path";
+import { execFile } from "child_process";
 
-export async function GET(request: Request) {
-  const scriptPath = path.join(process.cwd(), "scripts", "openclawLogs.mjs");
-  const url = new URL(request.url);
-  const cursor = url.searchParams.get("cursor");
-
-  const result = await new Promise<{ lines: string[]; cursor?: number }>((resolve, reject) => {
-    const args = [scriptPath];
-    if (cursor) args.push(cursor);
-    const child = spawn("node", args, {
-      env: process.env,
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-
-    child.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) {
-        try {
-          const payload = JSON.parse(stdout.trim() || "{}") as { lines?: string[] };
-          const lines = payload.lines || [];
-          const nextCursor = typeof payload.cursor === "number" ? payload.cursor : undefined;
-          resolve({ lines, cursor: nextCursor });
-        } catch (err) {
-          reject(err);
+export async function GET() {
+  try {
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile(
+        "openclaw",
+        ["logs", "--json", "--limit", "200", "--max-bytes", "200000", "--timeout", "10000"],
+        { env: process.env, timeout: 15000, maxBuffer: 1024 * 1024 },
+        (error, out, err) => {
+          if (error) {
+            reject(new Error(err?.toString() || error.message));
+            return;
+          }
+          resolve(out?.toString() || "");
         }
-      } else {
-        reject(new Error(stderr.trim() || "openclaw logs failed"));
-      }
+      );
     });
-  });
 
-  return NextResponse.json(result);
+    const lines = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(-200);
+
+    return NextResponse.json({ lines });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "openclaw logs failed" },
+      { status: 500 }
+    );
+  }
 }

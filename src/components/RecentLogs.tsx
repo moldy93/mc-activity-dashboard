@@ -173,12 +173,17 @@ export default function RecentLogs() {
         const data = await res.json();
         if (!active) return;
 
-        if (typeof data.cursor === "number") {
+        const hasCursor = typeof data.cursor === "number";
+        if (hasCursor) {
           cursorRef.current = data.cursor;
         }
         const nextLines = data.lines || [];
         if (nextLines.length > 0) {
-          setLines((prev) => [...prev, ...nextLines].slice(-LOG_MAX_LINES));
+          if (hasCursor) {
+            setLines((prev) => [...prev, ...nextLines].slice(-LOG_MAX_LINES));
+          } else {
+            setLines(nextLines.slice(-LOG_MAX_LINES));
+          }
         }
         setError(null);
       } catch (err) {
