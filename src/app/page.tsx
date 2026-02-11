@@ -352,6 +352,29 @@ function MissionControlOverview() {
     };
   }, []);
 
+  const activeRolesByTask = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const roleLabel = (key: string) => {
+      if (key === "dev") return "Developer";
+      if (key === "pm") return "PM";
+      if (key === "planner") return "Planner";
+      if (key === "reviewer") return "Reviewer";
+      if (key === "uiux") return "UI/UX";
+      return key;
+    };
+
+    Object.entries(agentWorkload).forEach(([roleKey, tasks]) => {
+      tasks.forEach((task) => {
+        const id = String(task.taskId || "").toLowerCase();
+        if (!id) return;
+        if (!map.has(id)) map.set(id, new Set());
+        map.get(id)!.add(roleLabel(roleKey));
+      });
+    });
+
+    return map;
+  }, [agentWorkload]);
+
   if (!data) {
     return (
       <div id="mission-control" className="py-4">
@@ -437,29 +460,6 @@ function MissionControlOverview() {
         };
       })
     : [];
-
-  const activeRolesByTask = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    const roleLabel = (key: string) => {
-      if (key === "dev") return "Developer";
-      if (key === "pm") return "PM";
-      if (key === "planner") return "Planner";
-      if (key === "reviewer") return "Reviewer";
-      if (key === "uiux") return "UI/UX";
-      return key;
-    };
-
-    Object.entries(agentWorkload).forEach(([roleKey, tasks]) => {
-      tasks.forEach((task) => {
-        const id = String(task.taskId || "").toLowerCase();
-        if (!id) return;
-        if (!map.has(id)) map.set(id, new Set());
-        map.get(id)!.add(roleLabel(roleKey));
-      });
-    });
-
-    return map;
-  }, [agentWorkload]);
 
   return (
     <div id="mission-control" className="py-4">
