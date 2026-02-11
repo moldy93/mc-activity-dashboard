@@ -266,6 +266,7 @@ function MissionControlOverview() {
     Record<
       string,
       {
+        currentTask: string[];
         status: string[];
         nextSteps: string[];
         blockers: string[];
@@ -320,9 +321,10 @@ function MissionControlOverview() {
         const payload = await res.json();
         if (!res.ok) return;
         if (mounted && Array.isArray(payload.details)) {
-          const map: Record<string, { status: string[]; nextSteps: string[]; blockers: string[]; mrLinks: string[]; branches: string[]; updatedAt?: number }> = {};
+          const map: Record<string, { currentTask: string[]; status: string[]; nextSteps: string[]; blockers: string[]; mrLinks: string[]; branches: string[]; updatedAt?: number }> = {};
           for (const entry of payload.details) {
             map[String(entry.role || "").toLowerCase()] = {
+              currentTask: Array.isArray(entry.currentTask) ? entry.currentTask : [],
               status: Array.isArray(entry.status) ? entry.status : [],
               nextSteps: Array.isArray(entry.nextSteps) ? entry.nextSteps : [],
               blockers: Array.isArray(entry.blockers) ? entry.blockers : [],
@@ -363,7 +365,25 @@ function MissionControlOverview() {
       return key;
     };
 
+    const isPassiveNext = (line: string) => {
+      const s = line.toLowerCase();
+      return s.includes("await new task") || s.includes("await new assignment") || s.includes("await new work");
+    };
+
+    const isRoleActive = (roleKey: string) => {
+      const details = agentDetails[roleKey];
+      if (!details) return true;
+      const hasRealCurrentTask = details.currentTask.some((t) => {
+        const s = String(t || "").toLowerCase();
+        return s && !s.includes("none") && !s.includes("(none)");
+      });
+      const hasActionableNext = details.nextSteps.some((n) => n && !isPassiveNext(n));
+      const hasBlocker = details.blockers.length > 0;
+      return hasRealCurrentTask || hasActionableNext || hasBlocker;
+    };
+
     Object.entries(agentWorkload).forEach(([roleKey, tasks]) => {
+      if (!isRoleActive(roleKey)) return;
       tasks.forEach((task) => {
         const id = String(task.taskId || "").toLowerCase();
         if (!id) return;
@@ -373,7 +393,7 @@ function MissionControlOverview() {
     });
 
     return map;
-  }, [agentWorkload]);
+  }, [agentWorkload, agentDetails]);
 
   if (!data) {
     return (
@@ -472,6 +492,10 @@ function MissionControlOverview() {
                 const roleKey = normalizeRoleKey(agent.role);
                 const tasks = agentWorkload[roleKey] || [];
                 const details = agentDetails[roleKey];
+                const filteredNextSteps = (details?.nextSteps || []).filter((line) => {
+                  const s = String(line || "").toLowerCase();
+                  return !(s.includes("await new task") || s.includes("await new assignment") || s.includes("await new work"));
+                });
                 return (
                   <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
                     <div className="flex items-center justify-between">
@@ -514,11 +538,11 @@ function MissionControlOverview() {
                           </div>
                         )}
 
-                        {details.nextSteps.length > 0 && (
+                        {filteredNextSteps.length > 0 && (
                           <div>
                             <p className="text-[10px] uppercase tracking-wide text-slate-500">Next</p>
                             <ul className="mt-1 space-y-1 text-slate-300">
-                              {details.nextSteps.slice(0, 2).map((line, idx) => (
+                              {filteredNextSteps.slice(0, 2).map((line, idx) => (
                                 <li key={idx}>• {line}</li>
                               ))}
                             </ul>
