@@ -438,6 +438,29 @@ function MissionControlOverview() {
       })
     : [];
 
+  const activeRolesByTask = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const roleLabel = (key: string) => {
+      if (key === "dev") return "Developer";
+      if (key === "pm") return "PM";
+      if (key === "planner") return "Planner";
+      if (key === "reviewer") return "Reviewer";
+      if (key === "uiux") return "UI/UX";
+      return key;
+    };
+
+    Object.entries(agentWorkload).forEach(([roleKey, tasks]) => {
+      tasks.forEach((task) => {
+        const id = String(task.taskId || "").toLowerCase();
+        if (!id) return;
+        if (!map.has(id)) map.set(id, new Set());
+        map.get(id)!.add(roleLabel(roleKey));
+      });
+    });
+
+    return map;
+  }, [agentWorkload]);
+
   return (
     <div id="mission-control" className="py-4">
 
@@ -544,14 +567,27 @@ function MissionControlOverview() {
                 </div>
                 <ul className="mt-2 space-y-2 text-xs text-slate-300">
                   {col.items.length === 0 && <li className="text-slate-600">—</li>}
-                  {col.items.map((item) => (
-                    <li key={item} className="rounded-md border border-slate-800 bg-slate-900/40 p-2">
-                      <div className="flex items-center gap-2">
-                        <ProjectBadge value={item} />
-                      </div>
-                      <div className="mt-1 text-xs text-slate-200">{item.replace(/^\S+\s+—\s+/, "")}</div>
-                    </li>
-                  ))}
+                  {col.items.map((item) => {
+                    const taskId = extractProjectId(item) || "";
+                    const activeRoles = taskId ? Array.from(activeRolesByTask.get(taskId) || []) : [];
+                    return (
+                      <li key={item} className="rounded-md border border-slate-800 bg-slate-900/40 p-2">
+                        <div className="flex items-center gap-2">
+                          <ProjectBadge value={item} />
+                        </div>
+                        <div className="mt-1 text-xs text-slate-200">{item.replace(/^\S+\s+—\s+/, "")}</div>
+                        {activeRoles.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {activeRoles.map((role) => (
+                              <span key={`${item}-${role}`} className="rounded border border-sky-800 bg-sky-950/40 px-2 py-0.5 text-[10px] text-sky-300">
+                                {role}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
