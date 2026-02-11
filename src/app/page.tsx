@@ -26,6 +26,17 @@ const relativeDate = (ms?: number) => {
   return `${days}d ago`;
 };
 
+const formatResetCountdown = (resetAt?: number) => {
+  if (!resetAt) return null;
+  const diffMs = Math.max(0, resetAt - Date.now());
+  const totalMinutes = Math.ceil(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  return `${hh}:${mm}`;
+};
+
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-4">
@@ -670,6 +681,7 @@ type UsageWindow = { label: string; usedPercent: number; resetAt?: number };
 function UsageBar({ label, percent, resetAt }: { label: string; percent?: number; resetAt?: number }) {
   const clamped = Math.max(0, Math.min(100, Number(percent || 0)));
   const remaining = 100 - clamped;
+  const resetIn = formatResetCountdown(resetAt);
   return (
     <div className="min-w-[150px]">
       <div className="mb-1 flex items-center justify-between text-[10px] text-slate-400">
@@ -679,8 +691,8 @@ function UsageBar({ label, percent, resetAt }: { label: string; percent?: number
       <div className="h-1.5 w-full overflow-hidden rounded bg-slate-800">
         <div className="h-full bg-sky-500" style={{ width: `${clamped}%` }} />
       </div>
-      {resetAt ? (
-        <div className="mt-1 text-[10px] text-slate-500">reset {relativeDate(resetAt)}</div>
+      {resetIn ? (
+        <div className="mt-1 text-[10px] text-slate-500">reset in {resetIn}</div>
       ) : null}
     </div>
   );
