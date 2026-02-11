@@ -30,10 +30,13 @@ const formatResetCountdown = (resetAt?: number) => {
   if (!resetAt) return null;
   const diffMs = Math.max(0, resetAt - Date.now());
   const totalMinutes = Math.ceil(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
+  const totalHours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
   const hh = String(hours).padStart(2, "0");
   const mm = String(minutes).padStart(2, "0");
+  if (days > 0) return `${days} days, ${hh}:${mm}`;
   return `${hh}:${mm}`;
 };
 
@@ -734,7 +737,7 @@ function CodexUsageFooter() {
       <div className="flex flex-wrap items-center gap-4 text-xs">
         <span className="text-slate-500">Codex usage</span>
         {fiveHour && <UsageBar label="5h" percent={fiveHour.usedPercent} resetAt={fiveHour.resetAt} />}
-        {day && <UsageBar label="Day" percent={day.usedPercent} resetAt={day.resetAt} />}
+        {day && <UsageBar label="Week" percent={day.usedPercent} resetAt={day.resetAt} />}
         {weekly && <UsageBar label="Week" percent={weekly.usedPercent} resetAt={weekly.resetAt} />}
         {!fiveHour && !day && !weekly && (
           <span className="text-[11px] text-slate-500">
