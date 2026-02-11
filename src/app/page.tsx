@@ -683,17 +683,13 @@ function UsageBar({ label, percent, resetAt }: { label: string; percent?: number
   const remaining = 100 - clamped;
   const resetIn = formatResetCountdown(resetAt);
   return (
-    <div className="min-w-[150px]">
-      <div className="mb-1 flex items-center justify-between text-[10px] text-slate-400">
-        <span>{label}</span>
-        <span>{remaining}% left</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded bg-slate-800">
+    <div className="flex items-center gap-2 whitespace-nowrap text-[10px] text-slate-400">
+      <span>{label}</span>
+      <div className="h-1.5 w-24 overflow-hidden rounded bg-slate-800">
         <div className="h-full bg-sky-500" style={{ width: `${clamped}%` }} />
       </div>
-      {resetIn ? (
-        <div className="mt-1 text-[10px] text-slate-500">reset in {resetIn}</div>
-      ) : null}
+      <span>{remaining}% left</span>
+      {resetIn ? <span className="text-slate-500">(resets in {resetIn} hours)</span> : null}
     </div>
   );
 }
@@ -730,6 +726,7 @@ function CodexUsageFooter() {
   }, []);
 
   const fiveHour = windows.find((w) => /^5h$/i.test(String(w.label || "")));
+  const day = windows.find((w) => /^day$/i.test(String(w.label || "")));
   const weekly = windows.find((w) => /week|7d/i.test(String(w.label || "")));
 
   return (
@@ -737,8 +734,9 @@ function CodexUsageFooter() {
       <div className="flex flex-wrap items-center gap-4 text-xs">
         <span className="text-slate-500">Codex usage</span>
         {fiveHour && <UsageBar label="5h" percent={fiveHour.usedPercent} resetAt={fiveHour.resetAt} />}
+        {day && <UsageBar label="Day" percent={day.usedPercent} resetAt={day.resetAt} />}
         {weekly && <UsageBar label="Week" percent={weekly.usedPercent} resetAt={weekly.resetAt} />}
-        {!fiveHour && !weekly && (
+        {!fiveHour && !day && !weekly && (
           <span className="text-[11px] text-slate-500">
             {loadError ? `currently unavailable (${loadError})` : "loading..."}
           </span>
