@@ -12,9 +12,15 @@ const AGENTS_DIR = path.join(WORKSPACE_ROOT, "mission-control", "agents");
 const TASKS_DIR = path.join(WORKSPACE_ROOT, "mission-control", "tasks");
 
 function parseSingleLine(content: string, label: string) {
-  const regex = new RegExp(`^[-*]?\\s*${label}:\\s*(.*)$`, "mi");
-  const match = content.match(regex);
-  return match?.[1]?.trim();
+  // Markdown-bold form: **Label:** value
+  const bold = new RegExp(`^(?:[-*]\\s*)?\\*\\*${label}:\\*\\*\\s*(.*)$`, "mi");
+  const mb = content.match(bold);
+  if (mb?.[1]) return mb[1].trim();
+
+  // Plain form: Label: value
+  const plain = new RegExp(`^(?:[-*]\\s*)?${label}:\\s*(.*)$`, "mi");
+  const mp = content.match(plain);
+  return mp?.[1]?.trim();
 }
 
 function normalizeRole(value: string) {
@@ -41,11 +47,12 @@ function parseAssignees(value?: string) {
     .filter(Boolean);
 }
 
-function parseTaskFile(content: string) {
+function parseTaskFile(content: string, fileName: string) {
   const titleMatch = content.match(/^# Task:\s*(.*)$/m);
   const fullTitle = titleMatch?.[1]?.trim() || "";
   const taskIdMatch = fullTitle.match(/[a-z0-9]+-\d{3}(?:-\d{2})?/i);
-  const taskId = taskIdMatch ? taskIdMatch[0].toLowerCase() : fullTitle;
+  const fileTaskIdMatch = fileName.match(/[a-z0-9]+-\d{3}(?:-\d{2})?/i);
+  const taskId = (taskIdMatch?.[0] || fileTaskIdMatch?.[0] || fullTitle).toLowerCase();
   const status = parseSingleLine(content, "Status");
   const assignees = parseAssignees(parseSingleLine(content, "Assignees"));
   return { taskId, title: fullTitle, status, assignees };
@@ -70,7 +77,7 @@ export async function GET() {
         if (!file.endsWith(".md")) continue;
         const fullPath = path.join(TASKS_DIR, file);
         const content = fs.readFileSync(fullPath, "utf8");
-        const task = parseTaskFile(content);
+        const task = parseTaskFile(content, file);
         if (!task.taskId || isDoneStatus(task.status)) continue;
 
         for (const assignee of task.assignees) {
