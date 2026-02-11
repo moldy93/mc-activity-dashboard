@@ -440,7 +440,7 @@ function MissionControlOverview() {
                 const tasks = agentWorkload[roleKey] || [];
                 const details = agentDetails[roleKey];
                 return (
-                  <div key={agent._id} className="py-2">
+                  <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
                     <div className="flex items-center justify-between">
                       <span
                         className="text-sm text-slate-100 font-semibold"
