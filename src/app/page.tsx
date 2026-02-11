@@ -241,13 +241,71 @@ function WeeklyCalendar() {
   );
 }
 
+type MarkdownBoardColumn = {
+  column: "Inbox" | "Planning" | "Development" | "Review" | "Done";
+  items: string[];
+};
+
 function MissionControlOverview() {
   const data = useQuery(api.mc.getOverview);
   const dailyCounts = useQuery(api.mc.listCountsDaily) ?? [];
+  const [boardColumns, setBoardColumns] = useState<MarkdownBoardColumn[]>([]);
+  const [boardError, setBoardError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadBoard = async () => {
+      try {
+        const res = await fetch("/api/mc-board", { cache: "no-store" });
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.error || "Failed to load board");
+        }
+        if (mounted) {
+          setBoardColumns(Array.isArray(payload.board) ? payload.board : []);
+          setBoardError(null);
+        }
+      } catch (error) {
+        if (mounted) {
+          setBoardError(error instanceof Error ? error.message : "Failed to load board");
+        }
+      }
+    };
+
+    loadBoard();
+    const interval = setInterval(loadBoard, 10000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   if (!data) {
     return (
       <div id="mission-control" className="py-4">
-        <p className="text-sm text-slate-400">Loading…</p>
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {boardColumns.map((col) => (
+            <div key={col.column} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-wide text-slate-400">{col.column}</span>
+                <span className="text-xs text-slate-500">{col.items.length}</span>
+              </div>
+              <ul className="mt-2 space-y-2 text-xs text-slate-300">
+                {col.items.length === 0 && <li className="text-slate-600">—</li>}
+                {col.items.map((item) => (
+                  <li key={item} className="rounded-md border border-slate-800 bg-slate-900/40 p-2">
+                    <div className="flex items-center gap-2">
+                      <ProjectBadge value={item} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-200">{item.replace(/^\S+\s+—\s+/, "")}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        {boardError && <p className="mt-4 text-sm text-rose-300">Board load error: {boardError}</p>}
       </div>
     );
   }
@@ -333,8 +391,8 @@ function MissionControlOverview() {
 
         <div>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {data.board.map((col) => (
-              <div key={col._id} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+            {boardColumns.map((col) => (
+              <div key={col.column} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] uppercase tracking-wide text-slate-400">{col.column}</span>
                   <span className="text-xs text-slate-500">{col.items.length}</span>
@@ -347,7 +405,6 @@ function MissionControlOverview() {
                         <ProjectBadge value={item} />
                       </div>
                       <div className="mt-1 text-xs text-slate-200">{item.replace(/^\S+\s+—\s+/, "")}</div>
-                      <div className="mt-1 text-[10px] text-slate-500">Updated</div>
                     </li>
                   ))}
                 </ul>
