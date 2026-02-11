@@ -251,6 +251,7 @@ function MissionControlOverview() {
   const dailyCounts = useQuery(api.mc.listCountsDaily) ?? [];
   const [boardColumns, setBoardColumns] = useState<MarkdownBoardColumn[]>([]);
   const [boardError, setBoardError] = useState<string | null>(null);
+  const [agentWorkload, setAgentWorkload] = useState<Record<string, Array<{ taskId: string; title: string; status?: string }>>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -273,8 +274,29 @@ function MissionControlOverview() {
       }
     };
 
+    const loadWorkload = async () => {
+      try {
+        const res = await fetch("/api/mc-agents-workload", { cache: "no-store" });
+        const payload = await res.json();
+        if (!res.ok) return;
+        if (mounted && Array.isArray(payload.workloads)) {
+          const map: Record<string, Array<{ taskId: string; title: string; status?: string }>> = {};
+          for (const entry of payload.workloads) {
+            map[String(entry.role || "").toLowerCase()] = Array.isArray(entry.tasks) ? entry.tasks : [];
+          }
+          setAgentWorkload(map);
+        }
+      } catch {
+        // keep UI usable even when workload endpoint fails
+      }
+    };
+
     loadBoard();
-    const interval = setInterval(loadBoard, 10000);
+    loadWorkload();
+    const interval = setInterval(() => {
+      loadBoard();
+      loadWorkload();
+    }, 10000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -374,17 +396,37 @@ function MissionControlOverview() {
         <div>
           <div className="mt-2">
             <div className="grid grid-cols-1 gap-3">
-              {data.agents.map((agent) => (
-                <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
-                    <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
+              {data.agents.map((agent) => {
+                const roleKey = String(agent.role || "").toLowerCase().replace(/[^a-z/]/g, "").replace("ui/ux", "uiux");
+                const tasks = agentWorkload[roleKey] || [];
+                return (
+                  <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
+                      <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
+                    </div>
+                    {agent.mission && (
+                      <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
+                    )}
+                    <div className="mt-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-500">Current tasks</p>
+                      {tasks.length === 0 ? (
+                        <p className="mt-1 text-xs text-slate-600">—</p>
+                      ) : (
+                        <ul className="mt-1 space-y-1">
+                          {tasks.map((task) => (
+                            <li key={`${task.taskId}-${task.title}`} className="text-xs text-slate-200">
+                              <span className="text-slate-400">{task.taskId}</span>
+                              <span className="text-slate-500"> — </span>
+                              {task.title.replace(/^\S+\s+—\s+/, "")}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
-                  {agent.mission && (
-                    <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
