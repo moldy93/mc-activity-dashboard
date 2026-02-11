@@ -49,6 +49,16 @@ const extractProjectId = (value?: string) => {
   return match ? match[0].toLowerCase() : null;
 };
 
+const normalizeRoleKey = (value?: string) => {
+  const raw = String(value || "").toLowerCase().replace(/[^a-z/]/g, "");
+  if (raw.includes("ui/ux") || raw.includes("uiux")) return "uiux";
+  if (raw.includes("review")) return "reviewer";
+  if (raw.includes("plan")) return "planner";
+  if (raw === "dev" || raw.includes("developer")) return "dev";
+  if (raw === "pm" || raw.includes("clientinterface") || raw.includes("product")) return "pm";
+  return raw;
+};
+
 function ProjectBadge({ value }: { value?: string }) {
   const projectId = extractProjectId(value);
   if (!projectId) return null;
@@ -436,7 +446,7 @@ function MissionControlOverview() {
           <div className="mt-2">
             <div className="grid grid-cols-1 gap-3">
               {data.agents.map((agent) => {
-                const roleKey = String(agent.role || "").toLowerCase().replace(/[^a-z/]/g, "").replace("ui/ux", "uiux");
+                const roleKey = normalizeRoleKey(agent.role);
                 const tasks = agentWorkload[roleKey] || [];
                 const details = agentDetails[roleKey];
                 return (
