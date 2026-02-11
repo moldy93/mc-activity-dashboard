@@ -688,6 +688,7 @@ function UsageBar({ label, percent, resetAt }: { label: string; percent?: number
 
 function CodexUsageFooter() {
   const [windows, setWindows] = useState<UsageWindow[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -695,11 +696,16 @@ function CodexUsageFooter() {
       try {
         const res = await fetch("/api/openclaw/usage", { cache: "no-store" });
         const payload = await res.json();
-        if (!res.ok || !mounted) return;
+        if (!mounted) return;
+        if (!res.ok) {
+          setLoadError(String(payload?.error || "Usage unavailable"));
+          return;
+        }
         const next = Array.isArray(payload?.provider?.windows) ? payload.provider.windows : [];
         setWindows(next);
+        setLoadError(null);
       } catch {
-        // silent in footer
+        if (mounted) setLoadError("Usage unavailable");
       }
     };
 
@@ -714,14 +720,17 @@ function CodexUsageFooter() {
   const fiveHour = windows.find((w) => /^5h$/i.test(String(w.label || "")));
   const weekly = windows.find((w) => /week|7d/i.test(String(w.label || "")));
 
-  if (!fiveHour && !weekly) return null;
-
   return (
-    <div className="mt-6 border-t border-slate-800 pt-3">
+    <div>
       <div className="flex flex-wrap items-center gap-4 text-xs">
         <span className="text-slate-500">Codex usage</span>
         {fiveHour && <UsageBar label="5h" percent={fiveHour.usedPercent} resetAt={fiveHour.resetAt} />}
         {weekly && <UsageBar label="Week" percent={weekly.usedPercent} resetAt={weekly.resetAt} />}
+        {!fiveHour && !weekly && (
+          <span className="text-[11px] text-slate-500">
+            {loadError ? `currently unavailable (${loadError})` : "loading..."}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -805,7 +814,7 @@ function GlobalSearch() {
 export default function Home() {
   return (
     <>
-      <main className="min-h-screen px-6 py-8">
+      <main className="min-h-screen px-6 py-8 pb-24">
       <GlobalSearch />
 
       <div className="pt-6">
@@ -823,7 +832,9 @@ export default function Home() {
         </div>
       </div>
 
-      <CodexUsageFooter />
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 px-6 py-2 backdrop-blur">
+        <CodexUsageFooter />
+      </div>
     </main>
     </>
   );
