@@ -674,6 +674,68 @@ function MissionControlOverview() {
 }
 
 
+type UsageWindow = { label: string; usedPercent: number; resetAt?: number };
+
+function UsageBar({ label, percent, resetAt }: { label: string; percent?: number; resetAt?: number }) {
+  const clamped = Math.max(0, Math.min(100, Number(percent || 0)));
+  const remaining = 100 - clamped;
+  return (
+    <div className="min-w-[150px]">
+      <div className="mb-1 flex items-center justify-between text-[10px] text-slate-400">
+        <span>{label}</span>
+        <span>{remaining}% left</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded bg-slate-800">
+        <div className="h-full bg-sky-500" style={{ width: `${clamped}%` }} />
+      </div>
+      {resetAt ? (
+        <div className="mt-1 text-[10px] text-slate-500">reset {relativeDate(resetAt)}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function CodexUsageFooter() {
+  const [windows, setWindows] = useState<UsageWindow[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/openclaw/usage", { cache: "no-store" });
+        const payload = await res.json();
+        if (!res.ok || !mounted) return;
+        const next = Array.isArray(payload?.provider?.windows) ? payload.provider.windows : [];
+        setWindows(next);
+      } catch {
+        // silent in footer
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 60000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const fiveHour = windows.find((w) => /^5h$/i.test(String(w.label || "")));
+  const weekly = windows.find((w) => /week|7d/i.test(String(w.label || "")));
+
+  if (!fiveHour && !weekly) return null;
+
+  return (
+    <div className="mt-6 border-t border-slate-800 pt-3">
+      <div className="flex flex-wrap items-center gap-4 text-xs">
+        <span className="text-slate-500">Codex usage</span>
+        {fiveHour && <UsageBar label="5h" percent={fiveHour.usedPercent} resetAt={fiveHour.resetAt} />}
+        {weekly && <UsageBar label="Week" percent={weekly.usedPercent} resetAt={weekly.resetAt} />}
+      </div>
+    </div>
+  );
+}
+
 function GlobalSearch() {
   const [term, setTerm] = useState("");
   const trimmed = term.trim();
@@ -769,6 +831,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <CodexUsageFooter />
     </main>
     </>
   );
