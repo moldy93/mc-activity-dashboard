@@ -440,14 +440,16 @@ function MissionControlOverview() {
                 const tasks = agentWorkload[roleKey] || [];
                 const details = agentDetails[roleKey];
                 return (
-                  <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                  <div key={agent._id} className="py-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
+                      <span
+                        className="text-sm text-slate-100 font-semibold"
+                        title={agent.mission || "No role description"}
+                      >
+                        {agent.role}
+                      </span>
                       <span className="text-xs text-slate-500">{relativeDate(details?.updatedAt || agent.updatedAt)}</span>
                     </div>
-                    {agent.mission && (
-                      <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
-                    )}
 
                     <div className="mt-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-500">Current tasks</p>
