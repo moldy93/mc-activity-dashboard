@@ -15,6 +15,12 @@ const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
   timeStyle: "short",
 });
 
+const resetDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
+  timeZone: "Europe/Berlin",
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 const relativeDate = (ms?: number) => {
   if (!ms) return "";
   const diff = Date.now() - ms;
@@ -685,6 +691,7 @@ function UsageBar({ label, percent, resetAt }: { label: string; percent?: number
   const clamped = Math.max(0, Math.min(100, Number(percent || 0)));
   const remaining = 100 - clamped;
   const resetIn = formatResetCountdown(resetAt);
+  const resetAtLabel = resetAt ? resetDateTimeFormatter.format(new Date(resetAt)) : null;
   return (
     <div className="flex items-center gap-2 whitespace-nowrap text-[10px] text-slate-400">
       <span>{label}</span>
@@ -692,7 +699,11 @@ function UsageBar({ label, percent, resetAt }: { label: string; percent?: number
         <div className="h-full bg-sky-500" style={{ width: `${clamped}%` }} />
       </div>
       <span>{remaining}% left</span>
-      {resetIn ? <span className="text-slate-500">(resets in {resetIn} hours)</span> : null}
+      {resetIn ? (
+        <span className="text-slate-500" title={resetAtLabel ? `Resets at: ${resetAtLabel} (Europe/Berlin)` : undefined}>
+          (resets in {resetIn} hours)
+        </span>
+      ) : null}
     </div>
   );
 }
