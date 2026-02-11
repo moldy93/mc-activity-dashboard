@@ -252,6 +252,19 @@ function MissionControlOverview() {
   const [boardColumns, setBoardColumns] = useState<MarkdownBoardColumn[]>([]);
   const [boardError, setBoardError] = useState<string | null>(null);
   const [agentWorkload, setAgentWorkload] = useState<Record<string, Array<{ taskId: string; title: string; status?: string }>>>({});
+  const [agentDetails, setAgentDetails] = useState<
+    Record<
+      string,
+      {
+        status: string[];
+        nextSteps: string[];
+        blockers: string[];
+        mrLinks: string[];
+        branches: string[];
+        updatedAt?: number;
+      }
+    >
+  >({});
 
   useEffect(() => {
     let mounted = true;
@@ -291,11 +304,37 @@ function MissionControlOverview() {
       }
     };
 
+    const loadAgentDetails = async () => {
+      try {
+        const res = await fetch("/api/mc-agent-details", { cache: "no-store" });
+        const payload = await res.json();
+        if (!res.ok) return;
+        if (mounted && Array.isArray(payload.details)) {
+          const map: Record<string, { status: string[]; nextSteps: string[]; blockers: string[]; mrLinks: string[]; branches: string[]; updatedAt?: number }> = {};
+          for (const entry of payload.details) {
+            map[String(entry.role || "").toLowerCase()] = {
+              status: Array.isArray(entry.status) ? entry.status : [],
+              nextSteps: Array.isArray(entry.nextSteps) ? entry.nextSteps : [],
+              blockers: Array.isArray(entry.blockers) ? entry.blockers : [],
+              mrLinks: Array.isArray(entry.mrLinks) ? entry.mrLinks : [],
+              branches: Array.isArray(entry.branches) ? entry.branches : [],
+              updatedAt: entry.updatedAt,
+            };
+          }
+          setAgentDetails(map);
+        }
+      } catch {
+        // keep UI usable even when details endpoint fails
+      }
+    };
+
     loadBoard();
     loadWorkload();
+    loadAgentDetails();
     const interval = setInterval(() => {
       loadBoard();
       loadWorkload();
+      loadAgentDetails();
     }, 10000);
     return () => {
       mounted = false;
@@ -399,15 +438,17 @@ function MissionControlOverview() {
               {data.agents.map((agent) => {
                 const roleKey = String(agent.role || "").toLowerCase().replace(/[^a-z/]/g, "").replace("ui/ux", "uiux");
                 const tasks = agentWorkload[roleKey] || [];
+                const details = agentDetails[roleKey];
                 return (
                   <div key={agent._id} className="rounded-md border border-slate-800 bg-slate-950/60 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-100 font-semibold">{agent.role}</span>
-                      <span className="text-xs text-slate-500">{relativeDate(agent.updatedAt)}</span>
+                      <span className="text-xs text-slate-500">{relativeDate(details?.updatedAt || agent.updatedAt)}</span>
                     </div>
                     {agent.mission && (
                       <p className="text-xs text-slate-300 mt-2 line-clamp-2">{agent.mission}</p>
                     )}
+
                     <div className="mt-2">
                       <p className="text-[10px] uppercase tracking-wide text-slate-500">Current tasks</p>
                       {tasks.length === 0 ? (
@@ -424,6 +465,56 @@ function MissionControlOverview() {
                         </ul>
                       )}
                     </div>
+
+                    {details && (
+                      <div className="mt-3 space-y-2 text-xs">
+                        {details.status.length > 0 && (
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-slate-500">Now</p>
+                            <ul className="mt-1 space-y-1 text-slate-300">
+                              {details.status.slice(0, 2).map((line, idx) => (
+                                <li key={idx}>• {line}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {details.nextSteps.length > 0 && (
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-slate-500">Next</p>
+                            <ul className="mt-1 space-y-1 text-slate-300">
+                              {details.nextSteps.slice(0, 2).map((line, idx) => (
+                                <li key={idx}>• {line}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {details.blockers.length > 0 && (
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-rose-300">Blockers</p>
+                            <ul className="mt-1 space-y-1 text-rose-200">
+                              {details.blockers.slice(0, 2).map((line, idx) => (
+                                <li key={idx}>• {line}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {(details.branches.length > 0 || details.mrLinks.length > 0) && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {details.branches.slice(0, 2).map((b) => (
+                              <span key={b} className="rounded border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">{b}</span>
+                            ))}
+                            {details.mrLinks.slice(0, 2).map((url) => (
+                              <a key={url} href={url} target="_blank" rel="noreferrer" className="rounded border border-emerald-800 bg-emerald-950/40 px-2 py-0.5 text-[10px] text-emerald-300 hover:underline">
+                                MR
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
