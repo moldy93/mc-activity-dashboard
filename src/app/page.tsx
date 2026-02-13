@@ -695,8 +695,9 @@ function UsageBar({ label, percent, resetAt }: { label: string; percent?: number
   return (
     <div className="flex items-center gap-2 whitespace-nowrap text-[10px] text-slate-400">
       <span>{label}</span>
-      <div className="h-1.5 w-24 overflow-hidden rounded bg-slate-800">
-        <div className="h-full bg-sky-500" style={{ width: `${clamped}%` }} />
+      <div className="relative h-1.5 w-24 overflow-hidden rounded bg-slate-800">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500" />
+        <div className="absolute inset-y-0 right-0 bg-slate-900/90" style={{ width: `${100 - clamped}%` }} />
       </div>
       <span>{remaining}% left</span>
       {resetIn ? (
