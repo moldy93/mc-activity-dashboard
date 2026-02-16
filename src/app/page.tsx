@@ -267,11 +267,38 @@ type MarkdownBoardColumn = {
   items: string[];
 };
 
+type RunStatePayload = {
+  updatedAt: number;
+  pollIntervalMs: number;
+  timeoutMs: number;
+  fallbackMs: number;
+  lastLoopAt: number;
+  missingBriefings: string[];
+  runs: Array<{
+    taskId: string;
+    role: string;
+    status: "queued" | "running" | "timed_out" | "dropped" | "completed";
+    startedAt: number;
+    lastRunAt: number;
+    lastPolledAt?: number;
+    nextPollAt: number;
+    lastCheckedAt?: number;
+    pollMode: "normal" | "recovery";
+    attempts: number;
+    sourceColumn: string;
+    taskTitle: string;
+    lastTransition?: string;
+  }>;
+  log: Array<{ at: number; role: string; taskId: string; event: string; reason: string }>;
+  error?: string;
+};
+
 function MissionControlOverview() {
   const data = useQuery(api.mc.getOverview);
   const dailyCounts = useQuery(api.mc.listCountsDaily) ?? [];
   const [boardColumns, setBoardColumns] = useState<MarkdownBoardColumn[]>([]);
   const [boardError, setBoardError] = useState<string | null>(null);
+  const [runState, setRunState] = useState<RunStatePayload | null>(null);
   const [agentWorkload, setAgentWorkload] = useState<Record<string, Array<{ taskId: string; title: string; status?: string }>>>({});
   const [agentDetails, setAgentDetails] = useState<
     Record<
@@ -326,6 +353,18 @@ function MissionControlOverview() {
       }
     };
 
+    const loadRunner = async () => {
+      try {
+        const res = await fetch("/api/mc-runs", { cache: "no-store" });
+        const payload = await res.json();
+        if (mounted) {
+          setRunState(payload as RunStatePayload);
+        }
+      } catch {
+        // keep UI usable even when run state endpoint fails
+      }
+    };
+
     const loadAgentDetails = async () => {
       try {
         const res = await fetch("/api/mc-agent-details", { cache: "no-store" });
@@ -354,10 +393,12 @@ function MissionControlOverview() {
     loadBoard();
     loadWorkload();
     loadAgentDetails();
+    loadRunner();
     const interval = setInterval(() => {
       loadBoard();
       loadWorkload();
       loadAgentDetails();
+      loadRunner();
     }, 10000);
     return () => {
       mounted = false;
@@ -406,10 +447,14 @@ function MissionControlOverview() {
     return map;
   }, [agentWorkload, agentDetails]);
 
+  const statusHint = runState
+    ? `Runs: ${runState.runs.filter((run) => run.status !== "completed").length} active, timeout ${runState.timeoutMs / 1000}s`
+    : "Run watcher not initialized";
+
   if (!data) {
     return (
       <div id="mission-control" className="py-4">
-        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {boardColumns.map((col) => (
             <div key={col.column} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
               <div className="flex items-center justify-between">
@@ -429,6 +474,13 @@ function MissionControlOverview() {
               </ul>
             </div>
           ))}
+          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-300">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400 mb-1">Runner</div>
+            <div>{statusHint}</div>
+            {runState?.missingBriefings && runState.missingBriefings.length > 0 && (
+              <p className="mt-1 text-rose-300">Missing briefing: {runState.missingBriefings.join(", ")}</p>
+            )}
+          </div>
         </div>
         {boardError && <p className="mt-4 text-sm text-rose-300">Board load error: {boardError}</p>}
       </div>
@@ -494,6 +546,17 @@ function MissionControlOverview() {
 
   return (
     <div id="mission-control" className="py-4">
+
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">Runner</div>
+          <div className="mt-1 text-sm text-slate-100">{statusHint}</div>
+          {runState?.missingBriefings && runState.missingBriefings.length > 0 && (
+            <p className="mt-1 text-xs text-rose-300">Missing briefing: {runState.missingBriefings.join(", ")}</p>
+          )}
+          <div className="mt-2 text-xs text-slate-400">Last loop: {relativeDate(runState?.lastLoopAt || runState?.updatedAt || 0)}</div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>

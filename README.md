@@ -49,3 +49,24 @@ curl -X POST http://localhost:3000/api/activity \
 ## Notes
 - Convex auth is required to run `convex dev`.
 - The UI assumes Convex is running and `NEXT_PUBLIC_CONVEX_URL` is set.
+
+
+## Activity runner
+
+`mc-activity-dashboard/scripts/mcActivityRunner.ts` watches `mission-control/board.md` and writes orchestration state to:
+`memory/mc/activity-runner-state.json`.
+
+Defaults: interval 10s, timeout 300s, dropped/recover fallback 300s.
+
+Overrides:
+- `MC_ACTIVITY_RUN_INTERVAL_MS` (default `10000`)
+- `MC_ACTIVITY_RUN_TIMEOUT_MS` (default `300000`)
+- `MC_ACTIVITY_RUN_FALLBACK_MS` (default `300000`)
+
+Run it manually with:
+
+```bash
+npm run run:mc-runner
+```
+
+In docker-compose the dedicated `mc-runner` service runs it continuously.

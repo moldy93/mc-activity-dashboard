@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "index:workspace": "tsx scripts/indexWorkspace.ts",
-    "postinstall": "node scripts/patch-lightningcss.mjs"
+    "postinstall": "node scripts/patch-lightningcss.mjs",
+    "run:mc-runner": "tsx scripts/mcActivityRunner.ts"
   },
   "dependencies": {
     "convex": "^1.31.7",

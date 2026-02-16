@@ -19,3 +19,17 @@ services:
       - /app/node_modules
       - /Users/m/.openclaw/workspace:/workspace:ro
     command: sh -c "npm install --include=optional && npx next dev --webpack -p 3000"
+
+
+  mc-runner:
+    build: .
+    environment:
+      - WORKSPACE_ROOT=/workspace
+      - MC_ACTIVITY_RUN_INTERVAL_MS=10000
+      - MC_ACTIVITY_RUN_FALLBACK_MS=300000
+      - MC_ACTIVITY_RUN_TIMEOUT_MS=300000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /Users/m/.openclaw/workspace:/workspace
+    command: sh -c "npm install --include=optional && npm run run:mc-runner"
