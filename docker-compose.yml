@@ -18,7 +18,7 @@ services:
       - ./:/app
       - /app/node_modules
       - /Users/m/.openclaw/workspace:/workspace:ro
-    command: sh -c "npm install --include=optional && npm run dev:with-index"
+    command: sh -c "npm install --include=optional && npm run dev"
 
 
   mc-runner:

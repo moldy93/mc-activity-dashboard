@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "sh -c \"tsx scripts/watchWorkspace.ts >/tmp/mc-index-watch.log 2>&1 & npx next dev --webpack -p 3000\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

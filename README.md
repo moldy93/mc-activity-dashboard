@@ -84,10 +84,13 @@ In docker-compose the dedicated `mc-runner` service runs it continuously.
 You can run dashboard + automatic indexing together with:
 
 ```bash
-npm run dev:with-index
+npm run dev
 ```
 
 The watcher runs `runIndexWorkspace()` every `MC_WORKSPACE_WATCH_INTERVAL_MS` (default `5000ms`) and only writes when file mtimes changed.
 
 Env overrides:
 - `MC_WORKSPACE_WATCH_INTERVAL_MS` (default `5000`)
+
+
+For Docker, `mc-dashboard` service now runs indexer automatically via `npm run dev`.
