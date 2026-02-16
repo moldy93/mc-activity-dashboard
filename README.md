@@ -77,3 +77,17 @@ In docker-compose the dedicated `mc-runner` service runs it continuously.
 - Role files for `planner/dev/pm/reviewer/uiux` are treated as **generic templates** and can live in the repository/dashboard package.
 - Any potentially personal/project-specific context (especially `WORKING.md` briefings and run state) must stay outside public repo scope, e.g. under user workspace: `memory/mc/<role>/WORKING.md`.
 - The runner does **not** write `WORKING.md`; it only checks their presence and reports missing files, so private context is not published by this flow.
+
+
+## Automatic workspace sync
+
+You can run dashboard + automatic indexing together with:
+
+```bash
+npm run dev:with-index
+```
+
+The watcher runs `runIndexWorkspace()` every `MC_WORKSPACE_WATCH_INTERVAL_MS` (default `5000ms`) and only writes when file mtimes changed.
+
+Env overrides:
+- `MC_WORKSPACE_WATCH_INTERVAL_MS` (default `5000`)

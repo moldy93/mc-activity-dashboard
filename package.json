@@ -9,7 +9,8 @@
     "lint": "eslint",
     "index:workspace": "tsx scripts/indexWorkspace.ts",
     "postinstall": "node scripts/patch-lightningcss.mjs",
-    "run:mc-runner": "tsx scripts/mcActivityRunner.ts"
+    "run:mc-runner": "tsx scripts/mcActivityRunner.ts",
+    "dev:with-index": "sh -c \"tsx scripts/watchWorkspace.ts >/tmp/mc-index-watch.log 2>&1 & npx next dev --webpack -p 3000\""
   },
   "dependencies": {
     "convex": "^1.31.7",

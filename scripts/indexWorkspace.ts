@@ -1,8 +1,36 @@
 import fs from "fs";
 import path from "path";
+import yaml from "js-yaml";
 import { ConvexHttpClient } from "convex/browser";
 
-const CONVEX_URL = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL;
+function readEnvVar(file: string, key: string): string | undefined {
+  try {
+    const envPath = path.join(process.cwd(), file);
+    if (!fs.existsSync(envPath)) return undefined;
+    const lines = fs.readFileSync(envPath, "utf8").split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx === -1) continue;
+      const currentKey = trimmed.slice(0, idx);
+      if (currentKey === key) {
+        return trimmed.slice(idx + 1);
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+const CONVEX_URL =
+  process.env.CONVEX_URL ||
+  process.env.NEXT_PUBLIC_CONVEX_URL ||
+  readEnvVar(".env.local", "NEXT_PUBLIC_CONVEX_URL") ||
+  readEnvVar(".env.local", "CONVEX_URL") ||
+  readEnvVar(".env", "NEXT_PUBLIC_CONVEX_URL") ||
+  readEnvVar(".env", "CONVEX_URL");
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || "/Users/m/.openclaw/workspace";
 
 const EXCLUDE_DIRS = new Set([
@@ -40,12 +68,12 @@ function saveIndexState(state: Record<string, number>) {
 
 function loadCronSnapshot() {
   try {
-    if (!fs.existsSync(CRON_SNAPSHOT_PATH)) return [] as any[];
+    if (!fs.existsSync(CRON_SNAPSHOT_PATH)) return [] as Array<Record<string, unknown>>;
     const raw = fs.readFileSync(CRON_SNAPSHOT_PATH, "utf8");
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [] as any[];
+    return [] as Array<Record<string, unknown>>;
   }
 }
 
@@ -81,6 +109,22 @@ function parseListBlock(content: string, heading: string) {
     .filter((line) => line && !line.startsWith("#"));
 }
 
+function parseFrontMatter(content: string) {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) return { frontmatter: null as Record<string, unknown> | null, body: content };
+
+  const raw = match[1];
+  try {
+    const parsed = yaml.load(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { frontmatter: parsed as Record<string, unknown>, body: match[2] };
+    }
+  } catch {
+    // fallthrough to markdown-only parsing
+  }
+  return { frontmatter: null as Record<string, unknown> | null, body: match[2] };
+}
+
 function parseSingleLine(content: string, label: string) {
   const regex = new RegExp(`^[-*]?\\s*${label}:\\s*(.*)$`, "mi");
   const match = content.match(regex);
@@ -89,7 +133,62 @@ function parseSingleLine(content: string, label: string) {
 }
 
 function parseTaskFile(content: string) {
-  const titleMatch = content.match(/^# Task:\s*(.*)$/m);
+  const { frontmatter, body } = parseFrontMatter(content);
+
+  if (frontmatter && String(frontmatter.primitive || "").toLowerCase() === "task") {
+    const taskId =
+      (typeof frontmatter.taskId === "string" && frontmatter.taskId) ||
+      (typeof frontmatter.projectId === "string" && frontmatter.projectId) ||
+      extractProjectId(typeof frontmatter.title === "string" ? frontmatter.title : undefined) ||
+      "unknown";
+    const title =
+      typeof frontmatter.title === "string"
+        ? frontmatter.title
+        : "";
+
+    const normalizeList = (value: unknown) => {
+      if (Array.isArray(value)) {
+        return value.map((entry) => String(entry).trim()).filter(Boolean);
+      }
+      if (typeof value === "string") {
+        return value
+          .split(/,|\//)
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      }
+      return undefined;
+    };
+
+    return {
+      taskId,
+      title,
+      owner: typeof frontmatter.owner === "string" ? frontmatter.owner : parseSingleLine(body, "Owner"),
+      assignees: normalizeList(frontmatter.assignees),
+      status: typeof frontmatter.status === "string" ? frontmatter.status : parseSingleLine(body, "Status"),
+      createdAt: typeof frontmatter.created === "string" ? frontmatter.created : parseSingleLine(body, "Created"),
+      context: typeof frontmatter.context === "string"
+        ? frontmatter.context
+        : parseListBlock(body, "Context").join("\n") || undefined,
+      goal: typeof frontmatter.goal === "string"
+        ? frontmatter.goal
+        : parseListBlock(body, "Goal (messbar)").join("\n") || undefined,
+      scope: typeof frontmatter.scope === "string"
+        ? frontmatter.scope
+        : parseListBlock(body, "Scope").join("\n") || undefined,
+      plan: typeof frontmatter.plan === "string"
+        ? frontmatter.plan
+        : parseListBlock(body, "Plan").join("\n") || undefined,
+      acceptanceCriteria: Array.isArray(frontmatter.acceptanceCriteria)
+        ? frontmatter.acceptanceCriteria.map((entry: unknown) => String(entry).trim()).filter(Boolean)
+        : parseListBlock(body, "Acceptance Criteria"),
+      risks: typeof frontmatter.risks === "string"
+        ? frontmatter.risks
+        : parseListBlock(body, "Risks / Open Questions").join("\n") || undefined,
+      links: normalizeList(frontmatter.links) || parseListBlock(body, "Links / Files"),
+    };
+  }
+
+  const titleMatch = body.match(/^# Task:\s*(.*)$/m);
   const titleLine = titleMatch ? titleMatch[1].trim() : "";
   const projectId = extractProjectId(titleLine);
   const title = projectId
@@ -99,27 +198,47 @@ function parseTaskFile(content: string) {
   return {
     taskId: projectId || titleLine || "unknown",
     title: title || titleLine || projectId || "",
-    owner: parseSingleLine(content, "Owner"),
-    assignees: parseSingleLine(content, "Assignees")
+    owner: parseSingleLine(body, "Owner"),
+    assignees: parseSingleLine(body, "Assignees")
       ?.split(/,|\//)
       .map((s) => s.trim())
       .filter(Boolean),
-    status: parseSingleLine(content, "Status"),
-    createdAt: parseSingleLine(content, "Created"),
-    context: parseListBlock(content, "Context").join("\n") || undefined,
-    goal: parseListBlock(content, "Goal \(messbar\)").join("\n") || undefined,
-    scope: parseListBlock(content, "Scope").join("\n") || undefined,
-    plan: parseListBlock(content, "Plan").join("\n") || undefined,
-    acceptanceCriteria: parseListBlock(content, "Acceptance Criteria"),
-    risks: parseListBlock(content, "Risks / Open Questions").join("\n") || undefined,
-    links: parseListBlock(content, "Links / Files"),
+    status: parseSingleLine(body, "Status"),
+    createdAt: parseSingleLine(body, "Created"),
+    context: parseListBlock(body, "Context").join("\n") || undefined,
+    goal: parseListBlock(body, "Goal (messbar)").join("\n") || undefined,
+    scope: parseListBlock(body, "Scope").join("\n") || undefined,
+    plan: parseListBlock(body, "Plan").join("\n") || undefined,
+    acceptanceCriteria: parseListBlock(body, "Acceptance Criteria"),
+    risks: parseListBlock(body, "Risks / Open Questions").join("\n") || undefined,
+    links: parseListBlock(body, "Links / Files"),
   };
 }
+
 
 function extractProjectId(value?: string) {
   if (!value) return undefined;
   const match = value.match(/[a-z0-9]+-\d{3}(?:-\d{2})?/i);
   return match ? match[0].toLowerCase() : undefined;
+}
+
+
+function normalizeTaskTitle(taskId: string, title: string) {
+  if (!taskId) return title;
+  const escaped = taskId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return title.replace(new RegExp(`^${escaped}\\s*—\\s*`), "").replace(/^—\\s*/, "");
+}
+
+function statusToColumn(status?: string) {
+  const normalized = (status || "").toLowerCase();
+  if (!normalized.trim()) return "Inbox" as const;
+  if (normalized.includes("done") || normalized.includes("complete") || normalized.includes("closed")) return "Done" as const;
+  if (normalized.includes("review") || normalized.includes("qa") || normalized.includes("qc") || normalized.includes("approve")) return "Review" as const;
+  if (normalized.includes("develop") || normalized.includes("implement") || normalized.includes("wip") || normalized.includes("active") || normalized.includes("progress") || normalized.includes("blocked") || normalized.includes("build")) {
+    return "Development" as const;
+  }
+  if (normalized.includes("plan") || normalized.includes("todo") || normalized.includes("inbox") || normalized.includes("ready") || normalized.includes("backlog")) return "Planning" as const;
+  return "Inbox" as const;
 }
 
 function parseStatusSection(section: string, fallbackId: string) {
@@ -201,7 +320,7 @@ function parseBoardFile(content: string) {
   }));
 }
 
-async function main() {
+export async function runIndexWorkspace() {
   if (!CONVEX_URL) {
     throw new Error("CONVEX_URL or NEXT_PUBLIC_CONVEX_URL is required");
   }
@@ -210,6 +329,8 @@ async function main() {
   const files = walk(WORKSPACE_ROOT).filter((f) => {
     return [".md", ".txt", ".log"].some((ext) => f.endsWith(ext));
   });
+
+  let hasChanges = false;
 
   const indexState = loadIndexState();
   const nextIndexState: Record<string, number> = { ...indexState };
@@ -237,6 +358,7 @@ async function main() {
     if (indexState[relPath] && indexState[relPath] === stats.mtimeMs) {
       continue;
     }
+    hasChanges = true;
     nextIndexState[relPath] = stats.mtimeMs;
     const content = fs.readFileSync(filePath, "utf8");
     const title = path.basename(filePath);
@@ -257,11 +379,14 @@ async function main() {
           ...parsed,
           updatedAt: stats.mtimeMs,
         });
-      } else if (filePath.includes(`${path.sep}tasks${path.sep}`)) {
+      } else if (
+        filePath.includes(`${path.sep}tasks${path.sep}`) ||
+        filePath.includes(`${path.sep}primitives${path.sep}tasks${path.sep}`)
+      ) {
         const parsed = parseTaskFile(content);
         const projectIdFromPath = extractProjectId(relPath);
         const taskId = projectIdFromPath || parsed.taskId;
-        const title = parsed.title.replace(/^—\s*/, "");
+        const title = normalizeTaskTitle(taskId, parsed.title);
         taskTitleById.set(taskId, title);
         await client.mutation("mc:cleanupTasksByFile", {
           filePath: relPath,
@@ -274,6 +399,16 @@ async function main() {
           filePath: relPath,
           updatedAt: stats.mtimeMs,
         });
+
+        const statusText = String(parsed.status || "").trim();
+        if (statusText) {
+          statusEntries.push({
+            taskId,
+            inProgress: statusText,
+            updatedAt: stats.mtimeMs,
+            filePath: relPath,
+          });
+        }
       } else if (filePath.includes(`${path.sep}status${path.sep}`)) {
         const parsed = parseStatusFile(content, relPath);
         const keepTaskIds = parsed.map((status) => status.taskId);
@@ -328,8 +463,8 @@ async function main() {
         if (entryHasProgress && existingHasProgress) {
           const entryStatus = (entry.inProgress || entry.done || "").toLowerCase();
           const existingStatus = (existing.inProgress || existing.done || "").toLowerCase();
-          const entryIsDone = entryStatus.includes("done") || entryStatus.includes("complete");
-          const existingIsDone = existingStatus.includes("done") || existingStatus.includes("complete");
+          const entryIsDone = statusToColumn(entryStatus) === "Done";
+          const existingIsDone = statusToColumn(existingStatus) === "Done";
           if (entryIsDone && !existingIsDone) {
             latestByTask.set(entry.taskId, entry);
           }
@@ -394,18 +529,8 @@ async function main() {
       for (const [taskId, entry] of latestByTask.entries()) {
         const title = taskTitleById.get(taskId);
         const label = title ? `${taskId} — ${title}` : taskId;
-        const statusText = (entry.inProgress || entry.done || "").toLowerCase();
-        if (statusText.includes("done") || statusText.includes("complete")) {
-          columns.Done.add(label);
-        } else if (statusText.includes("review")) {
-          columns.Review.add(label);
-        } else if (statusText.includes("develop") || statusText.includes("implement")) {
-          columns.Development.add(label);
-        } else if (statusText.includes("plan")) {
-          columns.Planning.add(label);
-        } else {
-          columns.Inbox.add(label);
-        }
+        const column = statusToColumn(entry.inProgress || entry.done || "");
+        columns[column].add(label);
       }
 
       const updatedAt = Date.now();
@@ -417,6 +542,11 @@ async function main() {
         });
       }
     }
+  }
+
+  if (!hasChanges) {
+    console.log(`No workspace changes in ${WORKSPACE_ROOT}; skipping ingestion.`);
+    return;
   }
 
   const cronJobs = loadCronSnapshot();
@@ -457,6 +587,10 @@ async function main() {
   }
 
   console.log(`Indexed ${files.length} files from ${WORKSPACE_ROOT}`);
+}
+
+async function main() {
+  await runIndexWorkspace();
 }
 
 main().catch((err) => {
