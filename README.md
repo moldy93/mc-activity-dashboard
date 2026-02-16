@@ -91,6 +91,10 @@ The watcher runs `runIndexWorkspace()` every `MC_WORKSPACE_WATCH_INTERVAL_MS` (d
 
 Env overrides:
 - `MC_WORKSPACE_WATCH_INTERVAL_MS` (default `5000`)
+- `MC_ACTIVITY_PHASE_ADVANCE_MS` (default `10000`)
 
 
 For Docker, `mc-dashboard` service now runs indexer automatically via `npm run dev`.
+
+
+Task lanes are now advanced by runner state transitions: Planning → Development → Review → Done when the active phase has been stable for `MC_ACTIVITY_PHASE_ADVANCE_MS`.

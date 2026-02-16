@@ -31,6 +31,7 @@ const ROLE_DEFAULTS: Record<string, string> = {
 const POLL_INTERVAL_MS = Number(process.env.MC_ACTIVITY_RUN_INTERVAL_MS || 10_000);
 const STATUS_POLL_FALLBACK_MS = Number(process.env.MC_ACTIVITY_RUN_FALLBACK_MS || 300_000);
 const RUN_TIMEOUT_MS = Number(process.env.MC_ACTIVITY_RUN_TIMEOUT_MS || 300_000);
+const PHASE_ADVANCE_MS = Number(process.env.MC_ACTIVITY_PHASE_ADVANCE_MS || 10_000);
 
 const RUN_STATE_PATH = path.join(
   WORKSPACE_ROOT,
@@ -50,15 +51,19 @@ type BoardTask = {
   label: string;
 };
 
+type TaskPhase = "Planning" | "Development" | "Review" | "Done";
+
 type RunRecord = {
   taskId: string;
   role: Role;
   status: RunStatus;
+  phase: TaskPhase;
   startedAt: number;
   lastRunAt: number;
   lastPolledAt?: number;
   nextPollAt: number;
   lastCheckedAt?: number;
+  phaseEnteredAt?: number;
   pollMode: PollMode;
   attempts: number;
   sourceColumn: string;
@@ -81,7 +86,15 @@ type ParsedTaskMeta = {
   taskId: string;
   title: string;
   assignees: Role[];
+  status?: string;
 };
+
+function parseSingleLine(content: string, label: string) {
+  const regex = new RegExp(`^[-*]?\s*${label}:\s*(.*)$`, "mi");
+  const match = content.match(regex);
+  if (!match) return undefined;
+  return typeof match[1] === "string" ? match[1].trim() : undefined;
+}
 
 function readJson(filePath: string) {
   try {
@@ -166,6 +179,7 @@ function parseTasks() {
       let title = "";
       let taskId = "";
       let assignees: Role[] = [];
+      let status: string | undefined;
       try {
         const parsed = yaml.load(frontMatterMatch[1]) as Record<string, unknown>;
         if (!parsed || typeof parsed !== "object") continue;
@@ -187,6 +201,9 @@ function parseTasks() {
       if (!assignees.length) {
         assignees = parseYamlTaskAssignees(content) as Role[];
       }
+      if (status === undefined) {
+        status = parseSingleLine(content, "Status");
+      }
       const m = title.match(/^test-\d{3}/i);
       const id = taskId || extractProjectId(content) || extractProjectId(file);
       if (!id) continue;
@@ -195,6 +212,7 @@ function parseTasks() {
           taskId: id,
           title: title || m?.[0] || file,
           assignees,
+          status,
         });
       }
     }
@@ -224,21 +242,77 @@ function ensureAgentFilesAndBriefings() {
   return missingBriefings;
 }
 
-function mapRoleForTask(taskId: string, taskMeta: ParsedTaskMeta | undefined, column: string) {
-  const assignees = taskMeta?.assignees || [];
-  const roles = new Set<Role>();
 
-  for (const role of assignees) roles.add(role);
+const PHASE_ORDER: TaskPhase[] = ["Planning", "Development", "Review", "Done"];
 
-  if (roles.size > 0) return Array.from(roles);
-
-  if (column === "Planning") return ["planner", "pm"];
-  if (column === "Development") return ["dev"];
-  if (column === "Review") return ["reviewer", "uiux"];
-  if (column === "Done" || column === "Inbox") return [];
-
-  return ["pm"];
+function normalizeTaskPhase(value?: string): TaskPhase {
+  if (!value) return "Planning";
+  if (value === "Done") return "Done";
+  if (value === "Development") return "Development";
+  if (value === "Review") return "Review";
+  return "Planning";
 }
+
+function phaseFromColumn(column: string): TaskPhase {
+  if (column === "Development") return "Development";
+  if (column === "Review") return "Review";
+  if (column === "Done") return "Done";
+  return "Planning";
+}
+
+function taskColumnToPhase(taskStatus?: string, boardColumn?: string) {
+  if (taskStatus) {
+    const s = taskStatus.toLowerCase();
+    if (s.includes("done") || s.includes("complete") || s.includes("closed")) return "Done" as TaskPhase;
+    if (s.includes("review") || s.includes("qa") || s.includes("approve")) return "Review" as TaskPhase;
+    if (s.includes("develop") || s.includes("implement") || s.includes("wip") || s.includes("active") || s.includes("progress") || s.includes("blocked") || s.includes("build")) return "Development" as TaskPhase;
+    if (s.includes("plan") || s.includes("todo") || s.includes("ready") || s.includes("backlog") || s.includes("inbox")) return "Planning" as TaskPhase;
+  }
+  return boardColumn ? phaseFromColumn(boardColumn) : "Planning" as TaskPhase;
+}
+
+function nextPhase(phase: TaskPhase): TaskPhase {
+  const idx = PHASE_ORDER.indexOf(phase);
+  return PHASE_ORDER[Math.min(idx + 1, PHASE_ORDER.length - 1)] as TaskPhase;
+}
+
+function shouldAdvancePhase(phase: TaskPhase, enteredAt: number, now: number) {
+  return phase !== "Done" && now - enteredAt >= PHASE_ADVANCE_MS;
+}
+
+function mapRoleForTask(taskMeta: ParsedTaskMeta | undefined, phase: TaskPhase) {
+  const assignees = taskMeta?.assignees || [];
+
+  const phaseRoles: Role[] =
+    phase === "Planning"
+      ? ["planner", "pm"]
+      : phase === "Development"
+      ? ["dev"]
+      : phase === "Review"
+      ? ["reviewer", "uiux"]
+      : [];
+
+  const filtered = phaseRoles.filter((role) => assignees.includes(role));
+  if (filtered.length > 0) return filtered;
+
+  if (phase === "Done") return [];
+  return phaseRoles.length > 0 ? phaseRoles : [];
+}
+
+function resolveTaskPhase(
+  taskId: string,
+  phaseState: Map<string, { phase: TaskPhase; enteredAt: number }> ,
+  inferred: TaskPhase,
+  now: number,
+) {
+  const existing = phaseState.get(taskId);
+  if (!existing) return inferred;
+  if (shouldAdvancePhase(existing.phase, existing.enteredAt, now)) {
+    return nextPhase(existing.phase);
+  }
+  return existing.phase;
+}
+
 
 function normalizeStatus(previous: RunStatus, now: number, run: RunRecord) {
   const started = now - run.startedAt;
@@ -318,15 +392,29 @@ function validateRoles(state: RunnerState) {
   const nextRunsMap = new Map(state.runs.map((run) => [`${run.role}:${run.taskId}`, run]));
   const board = loadBoard();
   const taskMeta = parseTasks();
+  const phaseState = new Map<string, { phase: TaskPhase; enteredAt: number }>();
+
+  for (const run of state.runs) {
+    if (!run.phase) run.phase = "Planning";
+    const enteredAt = run.phaseEnteredAt || run.startedAt;
+    const current = phaseState.get(run.taskId);
+    if (!current || enteredAt >= current.enteredAt) {
+      phaseState.set(run.taskId, { phase: normalizeTaskPhase(run.phase), enteredAt });
+    }
+  }
 
   const desired = new Map<string, Set<Role>>();
+  const desiredTaskPhase = new Map<string, TaskPhase>();
 
   for (const { column, items } of board) {
     for (const item of items) {
       const id = extractProjectId(item.taskId) || item.taskId.toLowerCase();
       if (!id) continue;
       const meta = taskMeta.get(id);
-      const roles = mapRoleForTask(id, meta, column);
+      const inferredFromStatus = taskColumnToPhase(meta?.status, column);
+      const currentPhase = resolveTaskPhase(id, phaseState, inferredFromStatus, now);
+      const roles = mapRoleForTask(meta, currentPhase);
+      desiredTaskPhase.set(id, currentPhase);
       for (const role of roles) {
         if (!desired.has(id)) desired.set(id, new Set<Role>());
         desired.get(id)!.add(role as Role);
@@ -341,7 +429,7 @@ function validateRoles(state: RunnerState) {
     const meta = taskMeta.get(taskId);
     const taskTitle = meta?.title || taskId;
         const boardCol = board.find((entry) => entry.items.some((item) => item.taskId === taskId || item.taskId.startsWith(taskId)));
-    const sourceColumn = boardCol?.column || "Unknown";
+    const sourceColumn = desiredTaskPhase.get(taskId) || phaseFromColumn(boardCol?.column || "Planning");
 
     for (const role of roles) {
       const key = `${role}:${taskId}`;
@@ -349,13 +437,16 @@ function validateRoles(state: RunnerState) {
 
       const existing = nextRunsMap.get(key);
       if (!existing) {
+        const targetPhase = desiredTaskPhase.get(taskId) || taskColumnToPhase(undefined, sourceColumn);
         const created: RunRecord = {
           taskId,
           role,
           status: "queued",
+          phase: targetPhase,
           startedAt: now,
           lastRunAt: now,
           lastPolledAt: now,
+          phaseEnteredAt: now,
           nextPollAt: now,
           pollMode: "normal" as const,
           attempts: 1,
@@ -366,12 +457,20 @@ function validateRoles(state: RunnerState) {
         updates.push(created);
         mergeLogEntry(state.log, created, "created");
       } else {
+        const targetPhase = desiredTaskPhase.get(taskId) || taskColumnToPhase(undefined, sourceColumn);
+        const phaseChanged = existing.phase !== targetPhase;
         const changed = {
           ...existing,
           sourceColumn,
+          phase: targetPhase,
+          phaseEnteredAt: phaseChanged ? now : (existing.phaseEnteredAt || now),
+          lastTransition: phaseChanged ? "phase-advance" : existing.lastTransition,
           taskTitle,
           lastRunAt: now,
         };
+        if (phaseChanged) {
+          mergeLogEntry(state.log, changed, "phase");
+        }
         updates.push(changed);
       }
     }
@@ -379,10 +478,21 @@ function validateRoles(state: RunnerState) {
 
   for (const existing of state.runs) {
     if (!desiredRunKeys.has(`${existing.role}:${existing.taskId}`)) {
-      if (existing.status !== "completed") {
+      const targetPhase = desiredTaskPhase.get(existing.taskId);
+      if (existing.status !== "completed" && targetPhase && existing.phase !== targetPhase) {
+        const completed = {
+          ...existing,
+          status: "completed" as RunStatus,
+          lastTransition: "phase-complete",
+          sourceColumn: targetPhase,
+        };
+        updates.push(completed);
+        mergeLogEntry(state.log, completed, "phase");
+      } else if (existing.status !== "completed") {
         const dropped = {
           ...existing,
           status: "dropped" as RunStatus,
+          phase: existing.phase || "Planning",
           pollMode: "recovery" as const,
           lastTransition: "missing-on-board",
           nextPollAt: now + STATUS_POLL_FALLBACK_MS,

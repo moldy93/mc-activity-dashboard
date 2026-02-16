@@ -6,6 +6,7 @@ type RunRecord = {
   taskId: string;
   role: string;
   status: "queued" | "running" | "timed_out" | "dropped" | "completed";
+  phase?: "Planning" | "Development" | "Review" | "Done";
   startedAt: number;
   lastRunAt: number;
   lastPolledAt?: number;
