@@ -4,11 +4,11 @@ import yaml from "js-yaml";
 
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || "/Users/m/.openclaw/workspace";
 
-const BOARD_PATH = path.join(WORKSPACE_ROOT, "mission-control", "board.md");
 const TASKS_DIRS = [
   path.join(WORKSPACE_ROOT, "mission-control", "tasks"),
   path.join(WORKSPACE_ROOT, "mission-control", "primitives", "tasks"),
 ];
+const PROJECTS_DIR = path.join(WORKSPACE_ROOT, "projects");
 const AGENTS_DIR = path.join(WORKSPACE_ROOT, "mission-control", "agents");
 const BRIEFINGS_DIR = path.join(WORKSPACE_ROOT, "memory", "mc");
 
@@ -32,6 +32,8 @@ const POLL_INTERVAL_MS = Number(process.env.MC_ACTIVITY_RUN_INTERVAL_MS || 10_00
 const STATUS_POLL_FALLBACK_MS = Number(process.env.MC_ACTIVITY_RUN_FALLBACK_MS || 300_000);
 const RUN_TIMEOUT_MS = Number(process.env.MC_ACTIVITY_RUN_TIMEOUT_MS || 300_000);
 const PHASE_ADVANCE_MS = Number(process.env.MC_ACTIVITY_PHASE_ADVANCE_MS || 10_000);
+const DEV_FEEDBACK_TIMEOUT_MS = Number(process.env.MC_ACTIVITY_DEV_FEEDBACK_TIMEOUT_MS || 3_600_000);
+const REVIEW_FEEDBACK_TIMEOUT_MS = Number(process.env.MC_ACTIVITY_REVIEW_FEEDBACK_TIMEOUT_MS || DEV_FEEDBACK_TIMEOUT_MS);
 
 const RUN_STATE_PATH = path.join(
   WORKSPACE_ROOT,
@@ -87,6 +89,8 @@ type ParsedTaskMeta = {
   title: string;
   assignees: Role[];
   status?: string;
+  filePath: string;
+  updatedAt: number;
 };
 
 function parseSingleLine(content: string, label: string) {
@@ -111,34 +115,28 @@ function writeJson(filePath: string, data: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
 }
 
-function loadBoard() {
-  if (!fs.existsSync(BOARD_PATH)) return [] as { column: string; items: BoardTask[] }[];
-  const content = fs.readFileSync(BOARD_PATH, "utf8");
-  const sections = ["Inbox", "Planning", "Development", "Review", "Done"];
-  const out = [] as { column: string; items: BoardTask[] }[];
-
-  const parseList = (text: string, heading: string) => {
-    const regex = new RegExp(`## ${heading}([\\s\\S]*?)(?=\\n## |$)`);
-    const match = text.match(regex);
-    if (!match) return [] as BoardTask[];
-    const lines = match[1]
-      .split("\n")
-      .map((line) => line.replace(/^[-*]\s*/, "").trim())
-      .filter(Boolean);
-    return lines
-      .map((line) => {
-        const m = line.match(/^([a-z0-9]+-\d{3}(?:-\d{2})?)\s+—\s+(.+)$/i);
-        if (!m) return { taskId: line.toLowerCase(), label: line } as BoardTask;
-        return { taskId: m[1].toLowerCase(), label: line };
-      })
-      .filter((entry) => entry.taskId);
-  };
-
-  for (const section of sections) {
-    out.push({ column: section, items: parseList(content, section) });
+function loadBoard(taskMetaMap?: Map<string, ParsedTaskMeta>) {
+  const byColumn = new Map<string, BoardTask[]>();
+  for (const column of ["Inbox", "Planning", "Development", "Review", "Done"]) {
+    byColumn.set(column, []);
   }
 
-  return out;
+  const tasks = taskMetaMap || parseTasks();
+  for (const meta of tasks.values()) {
+    const phase = taskColumnToPhase(meta.status, "Planning");
+    const column =
+      phase === "Development" ? "Development" :
+      phase === "Review" ? "Review" :
+      phase === "Done" ? "Done" :
+      "Planning";
+    const label = `${meta.taskId} — ${meta.title || meta.taskId}`;
+    byColumn.get(column)!.push({ taskId: meta.taskId, label });
+  }
+
+  return ["Inbox", "Planning", "Development", "Review", "Done"].map((column) => ({
+    column,
+    items: byColumn.get(column) || [],
+  }));
 }
 
 function extractProjectId(value?: string) {
@@ -165,6 +163,15 @@ function parseYamlTaskAssignees(taskContent: string): string[] {
 
 function parseTasks() {
   const map = new Map<string, ParsedTaskMeta>();
+
+  const upsert = (entry: ParsedTaskMeta, priority: number) => {
+    const prev = map.get(entry.taskId) as (ParsedTaskMeta & { __priority?: number }) | undefined;
+    const prevPriority = prev?.__priority ?? -1;
+    if (!prev || priority >= prevPriority) {
+      (entry as ParsedTaskMeta & { __priority?: number }).__priority = priority;
+      map.set(entry.taskId, entry);
+    }
+  };
 
   for (const tasksDir of TASKS_DIRS) {
     if (!fs.existsSync(tasksDir)) continue;
@@ -194,6 +201,9 @@ function parseTasks() {
               .filter((entry) => ["planner", "dev", "pm", "reviewer", "uiux"].includes(entry))
           : [];
         assignees = frontAssignees as Role[];
+        if (typeof parsed.status === "string") {
+          status = parsed.status;
+        }
       } catch {
         taskId = extractProjectId(file) || "";
       }
@@ -207,13 +217,47 @@ function parseTasks() {
       const m = title.match(/^test-\d{3}/i);
       const id = taskId || extractProjectId(content) || extractProjectId(file);
       if (!id) continue;
-      if (!map.has(id)) {
-        map.set(id, {
-          taskId: id,
-          title: title || m?.[0] || file,
+      upsert({
+        taskId: id,
+        title: title || m?.[0] || file,
+        assignees,
+        status,
+        filePath: full,
+        updatedAt: fs.statSync(full).mtimeMs,
+      }, 1);
+    }
+  }
+
+  if (fs.existsSync(PROJECTS_DIR)) {
+    for (const dir of fs.readdirSync(PROJECTS_DIR)) {
+      const briefing = path.join(PROJECTS_DIR, dir, "Briefing.yml");
+      if (!fs.existsSync(briefing)) continue;
+      const raw = fs.readFileSync(briefing, "utf8");
+      try {
+        const parsed = yaml.load(raw) as Record<string, unknown>;
+        if (!parsed || typeof parsed !== "object") continue;
+        const taskId =
+          (typeof parsed.taskId === "string" && parsed.taskId.toLowerCase()) ||
+          (typeof parsed.projectId === "string" && parsed.projectId.toLowerCase()) ||
+          "";
+        if (!taskId) continue;
+        const title = typeof parsed.title === "string" ? parsed.title : taskId;
+        const assignees = Array.isArray(parsed.assignees)
+          ? parsed.assignees
+              .map((entry) => String(entry || "").trim().toLowerCase())
+              .filter((entry) => ["planner", "dev", "pm", "reviewer", "uiux"].includes(entry)) as Role[]
+          : [];
+        const status = typeof parsed.status === "string" ? parsed.status : undefined;
+        upsert({
+          taskId,
+          title,
           assignees,
           status,
-        });
+          filePath: briefing,
+          updatedAt: fs.statSync(briefing).mtimeMs,
+        }, 2);
+      } catch {
+        continue;
       }
     }
   }
@@ -260,9 +304,137 @@ function phaseFromColumn(column: string): TaskPhase {
   return "Planning";
 }
 
+function isDevFeedbackPendingStatus(taskStatus?: string) {
+  if (!taskStatus) return false;
+  const s = taskStatus.toLowerCase();
+  return s.includes("plan") && s.includes("feedback") && (s.includes("dev") || s.includes("develop"));
+}
+
+
+function isReviewFeedbackPendingStatus(taskStatus?: string) {
+  if (!taskStatus) return false;
+  const s = taskStatus.toLowerCase();
+  return s.includes("develop") && s.includes("review") && s.includes("feedback");
+}
+
+function writeTaskStatus(filePath: string, nextStatus: string) {
+  if (!fs.existsSync(filePath)) return false;
+  const content = fs.readFileSync(filePath, "utf8");
+
+  // Markdown frontmatter file
+  const fm = content.match(new RegExp("^---\\n([\\s\\S]*?)\\n---\\n?"));
+  if (fm) {
+    const lines = fm[1].split("\n");
+    let replaced = false;
+    const nextLines = lines.map((line) => {
+      if (/^\s*status\s*:/i.test(line)) {
+        replaced = true;
+        return `status: ${nextStatus}`;
+      }
+      return line;
+    });
+    if (!replaced) nextLines.push(`status: ${nextStatus}`);
+
+    const nextFrontmatter = `---\n${nextLines.join("\n")}\n---\n`;
+    const updated = content.replace(new RegExp("^---\\n[\\s\\S]*?\\n---\\n?"), nextFrontmatter);
+    if (updated !== content) {
+      fs.writeFileSync(filePath, updated);
+      return true;
+    }
+    return false;
+  }
+
+  // Plain YAML file (projects/*/Briefing.yml)
+  const lines = content.split("\n");
+  let replaced = false;
+  const nextLines = lines.map((line) => {
+    if (/^\s*status\s*:/i.test(line)) {
+      replaced = true;
+      return `status: ${nextStatus}`;
+    }
+    return line;
+  });
+  if (!replaced) nextLines.push(`status: ${nextStatus}`);
+
+  const updated = `${nextLines.join("\n").replace(/\n*$/, "")}\n`;
+  if (updated !== content) {
+    fs.writeFileSync(filePath, updated);
+    return true;
+  }
+  return false;
+}
+
+function autoPromotePendingFeedback(taskMeta: Map<string, ParsedTaskMeta>, now: number) {
+  for (const meta of taskMeta.values()) {
+    if (isDevFeedbackPendingStatus(meta.status) && now - meta.updatedAt >= DEV_FEEDBACK_TIMEOUT_MS) {
+      if (writeTaskStatus(meta.filePath, "Development")) {
+        meta.status = "Development";
+        meta.updatedAt = Date.now();
+      }
+      continue;
+    }
+    if (isReviewFeedbackPendingStatus(meta.status) && now - meta.updatedAt >= REVIEW_FEEDBACK_TIMEOUT_MS) {
+      if (writeTaskStatus(meta.filePath, "Review")) {
+        meta.status = "Review";
+        meta.updatedAt = Date.now();
+      }
+    }
+  }
+}
+
+
+function appendDeveloperUpdate(filePath: string, taskId: string) {
+  if (!fs.existsSync(filePath)) return false;
+  if (!filePath.endsWith(".md")) return false;
+  const content = fs.readFileSync(filePath, "utf8");
+  if (content.includes("### Developer Update")) return false;
+  const stamp = new Date().toISOString();
+  const block = `
+
+### Developer Update
+
+- Auto-pass (${stamp})
+- Task ${taskId} processed by Developer role.
+- Handoff prepared for review feedback.
+`;
+  fs.writeFileSync(filePath, `${content.trimEnd()}${block}
+`);
+  return true;
+}
+
+function runAutoDeveloperPass(
+  taskMeta: Map<string, ParsedTaskMeta>,
+  desired: Map<string, Set<Role>>,
+  desiredTaskPhase: Map<string, TaskPhase>,
+) {
+  for (const [taskId, roles] of desired.entries()) {
+    if (!taskId.startsWith("test-")) continue;
+    if (!roles.has("dev")) continue;
+    const phase = desiredTaskPhase.get(taskId);
+    if (phase !== "Development") continue;
+
+    const meta = taskMeta.get(taskId);
+    if (!meta) continue;
+
+    const status = String(meta.status || "");
+    if (isReviewFeedbackPendingStatus(status) || status.toLowerCase().includes("review") || status.toLowerCase().includes("done")) {
+      continue;
+    }
+
+    const touched = appendDeveloperUpdate(meta.filePath, taskId);
+    const moved = writeTaskStatus(meta.filePath, "Development, Review Feedback");
+    if (touched || moved) {
+      meta.status = "Development, Review Feedback";
+      meta.updatedAt = Date.now();
+    }
+  }
+}
+
 function taskColumnToPhase(taskStatus?: string, boardColumn?: string) {
   if (taskStatus) {
     const s = taskStatus.toLowerCase();
+    if (isDevFeedbackPendingStatus(taskStatus)) return "Planning" as TaskPhase;
+    if (isReviewFeedbackPendingStatus(taskStatus)) return "Development" as TaskPhase;
     if (s.includes("done") || s.includes("complete") || s.includes("closed")) return "Done" as TaskPhase;
     if (s.includes("review") || s.includes("qa") || s.includes("approve")) return "Review" as TaskPhase;
     if (s.includes("develop") || s.includes("implement") || s.includes("wip") || s.includes("active") || s.includes("progress") || s.includes("blocked") || s.includes("build")) return "Development" as TaskPhase;
@@ -280,14 +452,23 @@ function shouldAdvancePhase(phase: TaskPhase, enteredAt: number, now: number) {
   return phase !== "Done" && now - enteredAt >= PHASE_ADVANCE_MS;
 }
 
-function mapRoleForTask(taskMeta: ParsedTaskMeta | undefined, phase: TaskPhase) {
+function mapRoleForTask(
+  taskMeta: ParsedTaskMeta | undefined,
+  phase: TaskPhase,
+  devFeedbackPending = false,
+  reviewFeedbackPending = false,
+) {
   const assignees = taskMeta?.assignees || [];
 
   const phaseRoles: Role[] =
     phase === "Planning"
-      ? ["planner", "pm"]
+      ? devFeedbackPending
+        ? ["planner", "pm", "dev"]
+        : ["planner", "pm"]
       : phase === "Development"
-      ? ["dev"]
+      ? reviewFeedbackPending
+        ? ["reviewer", "uiux"]
+        : ["dev"]
       : phase === "Review"
       ? ["reviewer", "uiux"]
       : [];
@@ -304,9 +485,37 @@ function resolveTaskPhase(
   phaseState: Map<string, { phase: TaskPhase; enteredAt: number }> ,
   inferred: TaskPhase,
   now: number,
+  devFeedbackPending = false,
+  reviewFeedbackPending = false,
 ) {
   const existing = phaseState.get(taskId);
+
+  if (devFeedbackPending) {
+    if (!existing) return "Planning";
+    if (existing.phase === "Planning" && now - existing.enteredAt >= DEV_FEEDBACK_TIMEOUT_MS) {
+      return "Development";
+    }
+    if (existing.phase === "Development") return "Development";
+    return "Planning";
+  }
+
+
+  if (reviewFeedbackPending) {
+    if (!existing) return "Development";
+    if (existing.phase === "Development" && now - existing.enteredAt >= REVIEW_FEEDBACK_TIMEOUT_MS) {
+      return "Review";
+    }
+    if (existing.phase === "Review") return "Review";
+    return "Development";
+  }
+
   if (!existing) return inferred;
+
+  // YAML status is source of truth: when inferred phase differs, reset to inferred.
+  if (existing.phase !== inferred) {
+    return inferred;
+  }
+
   if (shouldAdvancePhase(existing.phase, existing.enteredAt, now)) {
     return nextPhase(existing.phase);
   }
@@ -390,8 +599,9 @@ function parseRunState(): RunnerState {
 function validateRoles(state: RunnerState) {
   const now = Date.now();
   const nextRunsMap = new Map(state.runs.map((run) => [`${run.role}:${run.taskId}`, run]));
-  const board = loadBoard();
   const taskMeta = parseTasks();
+  autoPromotePendingFeedback(taskMeta, now);
+  const board = loadBoard(taskMeta);
   const phaseState = new Map<string, { phase: TaskPhase; enteredAt: number }>();
 
   for (const run of state.runs) {
@@ -412,8 +622,22 @@ function validateRoles(state: RunnerState) {
       if (!id) continue;
       const meta = taskMeta.get(id);
       const inferredFromStatus = taskColumnToPhase(meta?.status, column);
-      const currentPhase = resolveTaskPhase(id, phaseState, inferredFromStatus, now);
-      const roles = mapRoleForTask(meta, currentPhase);
+      const devFeedbackPending = isDevFeedbackPendingStatus(meta?.status);
+      const reviewFeedbackPending = isReviewFeedbackPendingStatus(meta?.status);
+      const currentPhase = resolveTaskPhase(
+        id,
+        phaseState,
+        inferredFromStatus,
+        now,
+        devFeedbackPending,
+        reviewFeedbackPending,
+      );
+      const roles = mapRoleForTask(
+        meta,
+        currentPhase,
+        devFeedbackPending && currentPhase === "Planning",
+        reviewFeedbackPending && currentPhase === "Development",
+      );
       desiredTaskPhase.set(id, currentPhase);
       for (const role of roles) {
         if (!desired.has(id)) desired.set(id, new Set<Role>());
@@ -421,6 +645,8 @@ function validateRoles(state: RunnerState) {
       }
     }
   }
+
+  runAutoDeveloperPass(taskMeta, desired, desiredTaskPhase);
 
   const desiredRunKeys = new Set<string>();
   const updates: Array<RunRecord> = [];
@@ -459,17 +685,26 @@ function validateRoles(state: RunnerState) {
       } else {
         const targetPhase = desiredTaskPhase.get(taskId) || taskColumnToPhase(undefined, sourceColumn);
         const phaseChanged = existing.phase !== targetPhase;
+        const shouldReactivate = existing.status === "completed" || existing.status === "dropped";
         const changed = {
           ...existing,
           sourceColumn,
           phase: targetPhase,
           phaseEnteredAt: phaseChanged ? now : (existing.phaseEnteredAt || now),
-          lastTransition: phaseChanged ? "phase-advance" : existing.lastTransition,
+          lastTransition: shouldReactivate
+            ? "reactivated"
+            : phaseChanged
+            ? "phase-advance"
+            : existing.lastTransition,
           taskTitle,
           lastRunAt: now,
+          status: shouldReactivate ? ("queued" as RunStatus) : existing.status,
+          startedAt: shouldReactivate ? now : existing.startedAt,
+          nextPollAt: shouldReactivate ? now : existing.nextPollAt,
+          pollMode: shouldReactivate ? ("normal" as const) : existing.pollMode,
         };
-        if (phaseChanged) {
-          mergeLogEntry(state.log, changed, "phase");
+        if (phaseChanged || shouldReactivate) {
+          mergeLogEntry(state.log, changed, shouldReactivate ? "created" : "phase");
         }
         updates.push(changed);
       }
@@ -563,6 +798,12 @@ function main() {
   if (Number.isNaN(RUN_TIMEOUT_MS) || RUN_TIMEOUT_MS <= 0) {
     throw new Error("MC_ACTIVITY_RUN_TIMEOUT_MS must be a positive integer");
   }
+  if (Number.isNaN(DEV_FEEDBACK_TIMEOUT_MS) || DEV_FEEDBACK_TIMEOUT_MS <= 0) {
+    throw new Error("MC_ACTIVITY_DEV_FEEDBACK_TIMEOUT_MS must be a positive integer");
+  }
+  if (Number.isNaN(REVIEW_FEEDBACK_TIMEOUT_MS) || REVIEW_FEEDBACK_TIMEOUT_MS <= 0) {
+    throw new Error("MC_ACTIVITY_REVIEW_FEEDBACK_TIMEOUT_MS must be a positive integer");
+  }
 
   const statePathDir = path.dirname(RUN_STATE_PATH);
   if (!fs.existsSync(statePathDir)) fs.mkdirSync(statePathDir, { recursive: true });
@@ -571,7 +812,8 @@ function main() {
     pollIntervalMs: POLL_INTERVAL_MS,
     fallbackIntervalMs: STATUS_POLL_FALLBACK_MS,
     timeoutMs: RUN_TIMEOUT_MS,
-    boardPath: BOARD_PATH,
+    devFeedbackTimeoutMs: DEV_FEEDBACK_TIMEOUT_MS,
+    reviewFeedbackTimeoutMs: REVIEW_FEEDBACK_TIMEOUT_MS,
   });
 
   let state = parseRunState();
