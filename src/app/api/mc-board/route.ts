@@ -35,7 +35,8 @@ function statusToColumn(status?: string): BoardColumn["column"] {
   if (s.includes("done") || s.includes("complete") || s.includes("closed")) return "Done";
   if (s.includes("review") || s.includes("qa") || s.includes("qc") || s.includes("approve")) return "Review";
   if (s.includes("develop") || s.includes("implement") || s.includes("wip") || s.includes("active") || s.includes("progress") || s.includes("blocked") || s.includes("build")) return "Development";
-  if (s.includes("plan") || s.includes("todo") || s.includes("ready") || s.includes("backlog") || s.includes("inbox")) return "Planning";
+  if (s.includes("inbox")) return "Inbox";
+  if (s.includes("plan") || s.includes("todo") || s.includes("ready") || s.includes("backlog")) return "Planning";
   return "Inbox";
 }
 
