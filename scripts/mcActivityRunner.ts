@@ -145,6 +145,69 @@ function extractProjectId(value?: string) {
   return match ? match[0].toLowerCase() : undefined;
 }
 
+function projectStatePathFromTaskFile(filePath: string) {
+  if (!filePath.endsWith("Briefing.yml")) return undefined;
+  return path.join(path.dirname(filePath), "state.json");
+}
+
+function ensureProjectStateFile(filePath: string, meta: { taskId: string; title: string; status?: string; assignees: Role[] }) {
+  const statePath = projectStatePathFromTaskFile(filePath);
+  if (!statePath) return;
+
+  const now = Date.now();
+  const existing = readJson(statePath) as Record<string, unknown> | undefined;
+  const rolePings = {
+    planner: 0,
+    dev: 0,
+    reviewer: 0,
+    uiux: 0,
+    pm: 0,
+    ...((existing?.rolePings as Record<string, number> | undefined) || {}),
+  };
+
+  const next = {
+    taskId: meta.taskId,
+    title: meta.title,
+    status: meta.status || "Inbox",
+    assignees: meta.assignees,
+    createdAt: (existing?.createdAt as number | undefined) || now,
+    updatedAt: now,
+    lastTransitionAt: (existing?.lastTransitionAt as number | undefined) || now,
+    rolePings,
+    history: Array.isArray(existing?.history) ? existing?.history : [],
+  };
+
+  writeJson(statePath, next);
+}
+
+function appendProjectStateTransition(filePath: string, nextStatus: string, reason: string) {
+  const statePath = projectStatePathFromTaskFile(filePath);
+  if (!statePath) return;
+
+  const now = Date.now();
+  const existing = (readJson(statePath) as Record<string, unknown> | undefined) || {};
+  const history = Array.isArray(existing.history) ? existing.history as Array<Record<string, unknown>> : [];
+  history.push({ at: now, status: nextStatus, reason });
+
+  const rolePings = {
+    planner: 0,
+    dev: 0,
+    reviewer: 0,
+    uiux: 0,
+    pm: 0,
+    ...((existing.rolePings as Record<string, number> | undefined) || {}),
+  };
+
+  writeJson(statePath, {
+    ...existing,
+    status: nextStatus,
+    updatedAt: now,
+    lastTransitionAt: now,
+    rolePings,
+    history,
+  });
+}
+
 function parseYamlTaskAssignees(taskContent: string): string[] {
   const match = taskContent.match(/^---\n([\s\S]*?)\n---\n/);
   if (!match) return [];
@@ -248,6 +311,7 @@ function parseTasks() {
               .filter((entry) => ["planner", "dev", "pm", "reviewer", "uiux"].includes(entry)) as Role[]
           : [];
         const status = typeof parsed.status === "string" ? parsed.status : undefined;
+        ensureProjectStateFile(briefing, { taskId, title, status, assignees });
         upsert({
           taskId,
           title,
@@ -339,6 +403,7 @@ function writeTaskStatus(filePath: string, nextStatus: string) {
     const updated = content.replace(new RegExp("^---\\n[\\s\\S]*?\\n---\\n?"), nextFrontmatter);
     if (updated !== content) {
       fs.writeFileSync(filePath, updated);
+      appendProjectStateTransition(filePath, nextStatus, "writeTaskStatus");
       return true;
     }
     return false;
@@ -359,6 +424,7 @@ function writeTaskStatus(filePath: string, nextStatus: string) {
   const updated = `${nextLines.join("\n").replace(/\n*$/, "")}\n`;
   if (updated !== content) {
     fs.writeFileSync(filePath, updated);
+    appendProjectStateTransition(filePath, nextStatus, "writeTaskStatus");
     return true;
   }
   return false;
